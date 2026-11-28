@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { keychain } from '@/lib/auth/keychain';
 
 /**
  * Mock-only persistence so the fake server "remembers" users and sessions across app
@@ -13,9 +13,9 @@ export type MockPersistence = {
 const KEY = 'nexa.mock.db.v1';
 
 export const secureStorePersistence: MockPersistence = {
-  load: () => SecureStore.getItemAsync(KEY),
-  save: (json) => SecureStore.setItemAsync(KEY, json),
-  clear: () => SecureStore.deleteItemAsync(KEY),
+  load: () => keychain.get(KEY),
+  save: (json) => keychain.set(KEY, json),
+  clear: () => keychain.remove(KEY),
 };
 
 export function memoryPersistence(): MockPersistence {

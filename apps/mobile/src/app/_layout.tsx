@@ -2,19 +2,36 @@ import '../global.css';
 import '../theme/interop';
 
 import { QueryClientProvider } from '@tanstack/react-query';
+import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
-import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components';
-import { createQueryClient, wireQueryManagers } from '@/lib/api/query-client';
+import { queryClient, wireQueryManagers } from '@/lib/api/query-client';
+import { restoreSession } from '@/lib/auth/session';
+import { useAuthStore } from '@/stores/auth-store';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
 wireQueryManagers();
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
-  const [queryClient] = useState(createQueryClient);
+  const status = useAuthStore((s) => s.status);
+  const onboarding = useAuthStore((s) => s.onboarding);
+
+  useEffect(() => {
+    void restoreSession();
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'restoring') void SplashScreen.hideAsync().catch(() => undefined);
+  }, [status]);
+
+  if (status === 'restoring') return null; // native splash stays up
+
+  const signedIn = status === 'signedIn';
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -22,11 +39,26 @@ export default function RootLayout() {
         <ThemeProvider>
           <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="dev/components"
-              options={{ headerShown: true, title: 'Components' }}
-            />
+            <Stack.Protected guard={signedIn && !onboarding}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="account" />
+            </Stack.Protected>
+            <Stack.Protected guard={signedIn && onboarding}>
+              <Stack.Screen name="(onboarding)" />
+            </Stack.Protected>
+            <Stack.Protected guard={!signedIn}>
+              <Stack.Screen name="(auth)" />
+            </Stack.Protected>
+            <Stack.Protected guard={__DEV__}>
+              <Stack.Screen
+                name="dev/components"
+                options={{ headerShown: true, title: 'Components' }}
+              />
+              <Stack.Screen
+                name="dev/settings"
+                options={{ headerShown: true, title: 'Dev settings' }}
+              />
+            </Stack.Protected>
           </Stack>
           <ToastHost />
         </ThemeProvider>

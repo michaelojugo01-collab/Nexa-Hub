@@ -1,5 +1,5 @@
 import type { Me, TokenPair } from '@nexa/api-contract';
-import * as SecureStore from 'expo-secure-store';
+import { keychain } from './keychain';
 
 /**
  * Everything session-related lives in the OS keychain/keystore via expo-secure-store.
@@ -18,7 +18,7 @@ export type StoredSession = TokenPair & { user: Me | null };
 
 async function get(key: string) {
   try {
-    return await SecureStore.getItemAsync(key);
+    return await keychain.get(key);
   } catch {
     return null;
   }
@@ -49,15 +49,15 @@ export const secureStorage = {
 
   async saveTokens(tokens: TokenPair) {
     await Promise.all([
-      SecureStore.setItemAsync(KEYS.accessToken, tokens.accessToken),
-      SecureStore.setItemAsync(KEYS.accessTokenExpiresAt, tokens.accessTokenExpiresAt),
-      SecureStore.setItemAsync(KEYS.refreshToken, tokens.refreshToken),
+      keychain.set(KEYS.accessToken, tokens.accessToken),
+      keychain.set(KEYS.accessTokenExpiresAt, tokens.accessTokenExpiresAt),
+      keychain.set(KEYS.refreshToken, tokens.refreshToken),
     ]);
   },
 
   /** Cached copy of /v1/me so a restart can show the app before the network answers. */
   async saveUser(user: Me) {
-    await SecureStore.setItemAsync(KEYS.user, JSON.stringify(user)).catch(() => undefined);
+    await keychain.set(KEYS.user, JSON.stringify(user)).catch(() => undefined);
   },
 
   async clearSession() {
@@ -68,7 +68,7 @@ export const secureStorage = {
         KEYS.refreshToken,
         KEYS.user,
         KEYS.localAvatarUri,
-      ].map((k) => SecureStore.deleteItemAsync(k).catch(() => undefined)),
+      ].map((k) => keychain.remove(k).catch(() => undefined)),
     );
   },
 
@@ -77,14 +77,14 @@ export const secureStorage = {
     const existing = await get(KEYS.deviceId);
     if (existing) return existing;
     const id = `dev_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-    await SecureStore.setItemAsync(KEYS.deviceId, id);
+    await keychain.set(KEYS.deviceId, id);
     return id;
   },
 
   /** Profile photo picked on this device (upload comes in a later module). */
   getLocalAvatarUri: () => get(KEYS.localAvatarUri),
   async setLocalAvatarUri(uri: string | null) {
-    if (uri) await SecureStore.setItemAsync(KEYS.localAvatarUri, uri);
-    else await SecureStore.deleteItemAsync(KEYS.localAvatarUri).catch(() => undefined);
+    if (uri) await keychain.set(KEYS.localAvatarUri, uri);
+    else await keychain.remove(KEYS.localAvatarUri).catch(() => undefined);
   },
 };
