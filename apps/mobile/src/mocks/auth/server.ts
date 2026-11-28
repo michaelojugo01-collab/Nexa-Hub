@@ -102,7 +102,7 @@ export class MockAuthServer {
   private readonly random: () => string;
 
   constructor(private readonly options: MockServerOptions) {
-    this.now = options.now ?? Date.now;
+    this.now = options.now ?? (() => Date.now());
     this.random = options.random ?? (() => Math.random().toString(36).slice(2, 12));
   }
 

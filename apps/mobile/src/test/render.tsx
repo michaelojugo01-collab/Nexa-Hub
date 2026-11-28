@@ -10,11 +10,17 @@ const safeAreaMetrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-/** Renders with the same providers as the app, and a fresh QueryClient with no retries. */
-export async function renderWithProviders(ui: ReactElement) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
-  });
+/**
+ * Renders with the same providers as the app. Defaults to a fresh QueryClient with no retries;
+ * integration tests pass the app's own `queryClient` so cache writes from mutations are visible.
+ */
+export async function renderWithProviders(
+  ui: ReactElement,
+  options: { queryClient?: QueryClient } = {},
+) {
+  const queryClient =
+    options.queryClient ??
+    new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   const result = await render(
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider initialMetrics={safeAreaMetrics}>

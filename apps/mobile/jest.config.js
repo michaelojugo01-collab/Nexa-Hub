@@ -6,9 +6,10 @@ const shared = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   // Packages that ship untranspiled ESM/TS and must go through Babel.
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|expo-router|expo-modules-core|@shopify/flash-list|nativewind|react-native-css-interop|@nexa/.*))',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|expo-router|expo-modules-core|@shopify/flash-list|standard-navigation|nativewind|react-native-css-interop|@nexa/.*))',
   ],
   moduleNameMapper: {
+    '\\.css$': '<rootDir>/src/test/style-mock.js',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/.expo/'],
