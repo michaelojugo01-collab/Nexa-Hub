@@ -1,9 +1,11 @@
+import { site } from '@nexa/config/site';
+
 /**
- * Public store links. PLACEHOLDER domain until the real one is decided (docs/decisions.md);
- * change it here only. The app scheme (app.json "scheme") opens the same paths in the app.
+ * Public store links. The domain (a PLACEHOLDER until decided) and scheme live in
+ * packages/config/site.ts, shared with the web and the Expo config.
  */
-export const STORE_LINK_DOMAIN = 'nexahub.app';
-export const APP_SCHEME = 'nexahub';
+export const STORE_LINK_DOMAIN = site.domain;
+export const APP_SCHEME = site.scheme;
 
 /** https://nexahub.app/adaezeprints — what sellers share. */
 export function storeUrl(slug: string) {

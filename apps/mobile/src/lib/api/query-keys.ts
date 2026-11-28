@@ -11,6 +11,9 @@ export const queryKeys = {
   store: (slug: string) => ['stores', slug] as const,
   stores: ['stores'] as const,
   myStore: ['me', 'store'] as const,
+  publicProduct: (store: string, product: string) =>
+    ['products', 'public', store, product] as const,
+  publicProfile: (username: string) => ['users', username] as const,
   slugAvailability: (slug: string) => ['slugs', slug] as const,
   products: (query: Omit<ListProductsQuery, 'cursor'> = {}) => ['products', query] as const,
   storeProducts: (slug: string) => ['products', { storeSlug: slug }, 'infinite'] as const,
