@@ -19,9 +19,26 @@ export type UploadKind = Schemas['UploadKind'];
 export type UploadRequest = Schemas['UploadRequest'];
 export type UploadTicket = Schemas['UploadTicket'];
 export type ProductSummary = Schemas['ProductSummary'];
-export type ProductType = Schemas['ProductType'];
 export type ProductPage = Schemas['ProductPage'];
 export type Product = Schemas['Product'];
+export type ContentMode = Schemas['ContentMode'];
+export type ProductState = Schemas['ProductState'];
+export type ProductVisibility = Schemas['ProductVisibility'];
+export type ProductTypeDef = Schemas['ProductTypeDef'];
+export type FileRules = Schemas['FileRules'];
+export type Tag = Schemas['Tag'];
+export type FeePreview = Schemas['FeePreview'];
+export type AssetKind = Schemas['AssetKind'];
+export type AssetStatus = Schemas['AssetStatus'];
+export type ProductAsset = Schemas['ProductAsset'];
+export type ProductPreview = Schemas['ProductPreview'];
+export type OwnProduct = Schemas['OwnProduct'];
+export type OwnProductPage = Schemas['OwnProductPage'];
+export type ProductCreate = Schemas['ProductCreate'];
+export type ProductUpdate = Schemas['ProductUpdate'];
+export type UploadStart = Schemas['UploadStart'];
+export type MultipartUpload = Schemas['MultipartUpload'];
+export type CompletedPart = Schemas['CompletedPart'];
 export type PublicProfile = Schemas['PublicProfile'];
 export type SitemapEntry = Schemas['SitemapEntry'];
 export type SitemapPage = Schemas['SitemapPage'];
@@ -267,6 +284,46 @@ export function createApiClient(options: ApiClientOptions) {
       request<PublicProfile>('GET', `/v1/users/${encodeURIComponent(username)}`),
     listSitemap: (query: { cursor?: string; limit?: number } = {}) =>
       request<SitemapPage>('GET', '/v1/sitemap', { query }),
+
+    // Products (F4)
+    listProductTypes: () =>
+      request<{ data: ProductTypeDef[]; nextCursor: string | null }>('GET', '/v1/product-types'),
+    listTags: (q = '', limit = 10) =>
+      request<{ data: Tag[]; nextCursor: string | null }>('GET', '/v1/tags', {
+        query: { q: q || undefined, limit },
+      }),
+    previewFee: (priceKobo: number) =>
+      request<FeePreview>('GET', '/v1/fees/preview', { query: { priceKobo } }),
+    listMyProducts: (query: { state?: ProductState; cursor?: string; limit?: number } = {}) =>
+      request<OwnProductPage>('GET', '/v1/products', { query: { owner: 'me', ...query } }),
+    createProduct: (body: ProductCreate) => request<OwnProduct>('POST', '/v1/products', { body }),
+    getOwnProduct: (id: string) =>
+      request<OwnProduct>('GET', `/v1/products/${encodeURIComponent(id)}`),
+    updateProduct: (id: string, body: ProductUpdate) =>
+      request<OwnProduct>('PATCH', `/v1/products/${encodeURIComponent(id)}`, { body }),
+    startProductUpload: (id: string, body: UploadStart) =>
+      request<MultipartUpload>('POST', `/v1/products/${encodeURIComponent(id)}/uploads`, {
+        body,
+      }),
+    completeProductUpload: (id: string, uploadId: string, parts: CompletedPart[]) =>
+      request<ProductAsset>(
+        'POST',
+        `/v1/products/${encodeURIComponent(id)}/uploads/${encodeURIComponent(uploadId)}/complete`,
+        { body: { parts } },
+      ),
+    abortProductUpload: (id: string, uploadId: string) =>
+      request<void>(
+        'DELETE',
+        `/v1/products/${encodeURIComponent(id)}/uploads/${encodeURIComponent(uploadId)}`,
+      ),
+    publishProduct: (id: string, visibility: ProductVisibility) =>
+      request<OwnProduct>('POST', `/v1/products/${encodeURIComponent(id)}/publish`, {
+        body: { visibility },
+      }),
+    unpublishProduct: (id: string) =>
+      request<OwnProduct>('POST', `/v1/products/${encodeURIComponent(id)}/unpublish`),
+    republishProduct: (id: string) =>
+      request<OwnProduct>('POST', `/v1/products/${encodeURIComponent(id)}/republish`),
   };
 }
 

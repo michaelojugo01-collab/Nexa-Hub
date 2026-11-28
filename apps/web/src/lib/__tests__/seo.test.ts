@@ -1,6 +1,6 @@
-import { productRecords, stores } from '@nexa/mocks';
-import type { Product, PublicProfile } from '@nexa/api-contract';
-import { describe, expect, it } from 'vitest';
+import { createApiClient, type Product, type PublicProfile } from '@nexa/api-contract';
+import { createMockFetch, stores } from '@nexa/mocks';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import {
   canonicalUrl,
@@ -19,9 +19,20 @@ import {
 const adaeze = stores.find((s) => s.slug === 'adaezeprints')!;
 const kola = stores.find((s) => s.slug === 'kolacreates')!;
 
+const api = createApiClient({ baseUrl: 'https://mock.test', fetch: createMockFetch() });
+const loaded: Record<string, Product> = {};
+const SLUGS = [
+  ['adaezeprints', 'ankara-print-pattern-pack-40-designs'],
+  ['adaezeprints', 'adire-textile-mockups'],
+  ['studysmartabuja', 'jamb-physics-study-guide-topics-and-formulas'],
+] as const;
+
+beforeAll(async () => {
+  for (const [store, slug] of SLUGS) loaded[slug] = await api.getPublicProduct(store, slug);
+});
+
 function product(slug: string): Product {
-  const { status: _s, updatedAt: _u, ...p } = productRecords.find((r) => r.slug === slug)!;
-  return p;
+  return loaded[slug]!;
 }
 
 const profile: PublicProfile = {
@@ -89,8 +100,12 @@ describe('store metadata', () => {
 });
 
 describe('product metadata', () => {
-  const p = product('ankara-print-pattern-pack-40-designs');
-  const meta = productMetadata(p);
+  let p: Product;
+  let meta: ReturnType<typeof productMetadata>;
+  beforeAll(() => {
+    p = product('ankara-print-pattern-pack-40-designs');
+    meta = productMetadata(p);
+  });
 
   it('puts the price in the title and description (WhatsApp shows those)', () => {
     expect(meta.title).toBe('Ankara Print Pattern Pack (40 designs) – ₦4,500');
@@ -98,7 +113,7 @@ describe('product metadata', () => {
     expect(meta.openGraph).toMatchObject({
       title: 'Ankara Print Pattern Pack (40 designs) – ₦4,500',
       url: 'https://nexahub.app/adaezeprints/ankara-print-pattern-pack-40-designs',
-      images: [{ url: p.images[0], width: 600, height: 600 }],
+      images: [{ url: p.images[0] }],
     });
     expect(meta.alternates?.canonical).toBe(
       canonicalUrl('/adaezeprints/ankara-print-pattern-pack-40-designs'),
@@ -134,7 +149,7 @@ describe('product metadata', () => {
   });
 
   it('uses the sale price, not the old price', () => {
-    const sale = product('jamb-physics-past-questions-2015-2025');
+    const sale = product('jamb-physics-study-guide-topics-and-formulas');
     expect(productJsonLd(sale).offers.price).toBe('1500.00');
     expect(productMetadata(sale).title).toContain('₦1,500');
   });

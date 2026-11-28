@@ -9,7 +9,7 @@ import { toast } from '@/stores/toast-store';
 import { useTheme } from '@/theme/ThemeProvider';
 
 import { FeaturedStores } from './FeaturedStores';
-import { isHomeEmpty, productTypeLabel, toHomeItems, type HomeItem } from './home-items';
+import { isHomeEmpty, toHomeItems, type HomeItem } from './home-items';
 import { HomeSkeleton } from './HomeSkeleton';
 
 function Header() {
@@ -129,7 +129,7 @@ export function HomeScreen() {
                     priceKobo={item.product.price.amountKobo}
                     compareAtKobo={item.product.compareAtPrice?.amountKobo}
                     imageUrl={item.product.imageUrl}
-                    typeLabel={productTypeLabel[item.product.type]}
+                    typeLabel={item.product.typeName}
                     featured={item.product.featured}
                   />
                 </View>

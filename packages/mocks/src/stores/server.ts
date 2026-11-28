@@ -1,8 +1,6 @@
 import type {
   FollowState,
-  Product,
   PublicProfile,
-  SitemapEntry,
   ImageVariants,
   OwnStore,
   SlugAvailability,
@@ -28,7 +26,6 @@ import type { MockPersistence } from '../persistence';
 import {
   categories,
   fixtureFollows,
-  productRecords,
   profileFixtures,
   reservedSlugs,
   storeRecords,
@@ -158,6 +155,7 @@ export class MockStoreServer {
       isFollowing: !!viewerId && (this.db.follows[viewerId] ?? []).includes(record.id),
       isOwner: viewerId === record.ownerId,
       redirectTo: requestedSlug && requestedSlug !== record.slug ? record.slug : null,
+      productCount: this.productCounter ? this.productCounter(record.slug) : record.productCount,
     };
   }
 
@@ -433,36 +431,41 @@ export class MockStoreServer {
     return { slug: record.slug };
   }
 
-  /** Slugs of stores everyone can see right now (for public product lists). */
-  async publicStoreSlugs() {
+  // ── For the products mock (F4) ────────────────────────────────────────────
+
+  private productCounter: ((storeSlug: string) => number) | null = null;
+
+  /** Live public product counts come from the products mock. */
+  setProductCounter(counter: (storeSlug: string) => number) {
+    this.productCounter = counter;
+  }
+
+  /** A store record by current or old slug. */
+  async findStoreRecord(slug: string) {
     await this.ensureLoaded();
-    return new Set(
-      Object.values(this.db.stores)
-        .filter((s) => s.visibility === 'public')
-        .map((s) => s.slug),
-    );
+    return this.bySlug(slug);
+  }
+
+  async findStoreRecordByOwner(userId: string) {
+    await this.ensureLoaded();
+    return this.byOwner(userId);
+  }
+
+  async allStoreRecords() {
+    await this.ensureLoaded();
+    return Object.values(this.db.stores);
+  }
+
+  storeSummary(record: StoreRecord) {
+    return toSummary({ ...record, followerCount: this.followerCount(record) });
+  }
+
+  /** Viewer id from an optional token (null when signed out), or the 401 to send. */
+  async viewerOf(authorization: string | undefined) {
+    return this.optionalViewer(authorization);
   }
 
   // ── Public web (F3) ───────────────────────────────────────────────────────
-
-  /** GET /v1/stores/{storeSlug}/products/{productSlug}: live products of public stores. */
-  async getPublicProduct(storeSlug: string, productSlug: string) {
-    await this.ensureLoaded();
-    const notFoundProduct = err(404, 'NOT_FOUND', 'We couldn’t find that product.');
-    const store = this.bySlug(storeSlug);
-    if (!store || store.visibility !== 'public') return notFoundProduct;
-    const record = productRecords.find(
-      (p) => p.store.slug === store.slug && p.slug === productSlug && p.status === 'live',
-    );
-    if (!record) return notFoundProduct;
-    const { status: _s, updatedAt: _u, ...product } = record;
-    return ok<Product>({
-      ...product,
-      store: { slug: store.slug, name: store.name },
-      storeInfo: toSummary({ ...store, followerCount: this.followerCount(store) }),
-      redirectTo: storeSlug !== store.slug ? store.slug : null,
-    });
-  }
 
   /** GET /v1/users/{username}: public fields only; the store only if it is public. */
   async getPublicProfile(username: string) {
@@ -485,27 +488,6 @@ export class MockStoreServer {
           : null,
       createdAt: person.createdAt,
     });
-  }
-
-  /** GET /v1/sitemap: public stores, then live products of public stores. */
-  async sitemapEntries(): Promise<SitemapEntry[]> {
-    await this.ensureLoaded();
-    const publicStores = Object.values(this.db.stores).filter((s) => s.visibility === 'public');
-    const slugs = new Set(publicStores.map((s) => s.slug));
-    const storeEntries = publicStores.map<SitemapEntry>((s) => ({
-      type: 'store',
-      path: `/${s.slug}`,
-      updatedAt: s.createdAt,
-    }));
-    const currentSlug = (slug: string) => this.bySlug(slug)?.slug ?? slug;
-    const productEntries = productRecords
-      .filter((p) => p.status === 'live' && slugs.has(currentSlug(p.store.slug)))
-      .map<SitemapEntry>((p) => ({
-        type: 'product',
-        path: `/${currentSlug(p.store.slug)}/${p.slug}`,
-        updatedAt: p.updatedAt,
-      }));
-    return [...storeEntries, ...productEntries];
   }
 
   // ── Uploads ───────────────────────────────────────────────────────────────

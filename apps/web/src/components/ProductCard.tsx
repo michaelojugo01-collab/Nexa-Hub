@@ -6,14 +6,6 @@ import { productPath } from '@/lib/seo';
 
 import { Price } from './Price';
 
-const typeLabel: Record<ProductSummary['type'], string> = {
-  digital: 'Digital',
-  ebook: 'Ebook',
-  course: 'Course',
-  service: 'Service',
-  physical: 'Physical',
-};
-
 export function ProductCard({
   product,
   priority = false,
@@ -45,14 +37,10 @@ export function ProductCard({
         ) : null}
       </div>
       <div className="flex flex-col gap-1 p-3">
-        <span className="text-xs font-medium uppercase text-text-muted">
-          {typeLabel[product.type]}
-        </span>
+        <span className="text-xs font-medium uppercase text-text-muted">{product.typeName}</span>
         <span className="line-clamp-2 text-sm font-semibold text-text">{product.title}</span>
         <Price price={product.price} compareAt={product.compareAtPrice} />
       </div>
     </Link>
   );
 }
-
-export { typeLabel };

@@ -8,6 +8,8 @@ export const config = {
   mockDelayMs: 0,
   mockFailureRate: 0,
   mockUploadFailureRate: 0,
+  mockFileRejectRate: 0,
+  mockNetworkDropRate: 0,
   mockAccessTokenTtlSec: 30,
   appLockAfterSec: 300,
   mockScenario: 'default' as const,

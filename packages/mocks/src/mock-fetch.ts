@@ -3,6 +3,7 @@ import type { FetchLike } from '@nexa/api-contract';
 import { MockAuthServer } from './auth/server';
 import { memoryPersistence } from './persistence';
 import { handleMockRequest, type MockFlags, type MockScenario } from './handlers';
+import { MockProductServer } from './products/server';
 import { MockStoreServer } from './stores/server';
 
 export type MockFetchOptions = {
@@ -15,6 +16,8 @@ export type MockFetchOptions = {
   server?: MockAuthServer;
   /** The fake stores backend. Defaults to an in-memory one tied to `server`. */
   stores?: MockStoreServer;
+  /** The fake products backend (F4). Defaults to an in-memory one tied to the others. */
+  products?: MockProductServer;
   /** Read on every request so the Dev settings toggles apply immediately. */
   getFlags?: () => MockFlags & { offline: boolean };
   /** Injected for deterministic tests. */
@@ -50,10 +53,14 @@ export function createMockFetch({
   server = new MockAuthServer({ persistence: memoryPersistence(), accessTokenTtlSec: 900 }),
   getFlags = () => ({ smsDown: false, rateLimited: false, offline: false }),
   stores,
+  products,
   random = Math.random,
 }: MockFetchOptions = {}): FetchLike {
   const storeServer =
     stores ?? new MockStoreServer({ auth: server, persistence: memoryPersistence() });
+  const productServer =
+    products ??
+    new MockProductServer({ auth: server, stores: storeServer, persistence: memoryPersistence() });
   return async (url, init) => {
     await wait(delayMs, init.signal);
     const flags = getFlags();
@@ -74,7 +81,7 @@ export function createMockFetch({
         : undefined;
     const { status, body: responseBody } = await handleMockRequest(
       { method: init.method ?? 'GET', url, body, authorization: header(init, 'Authorization') },
-      { server, stores: storeServer, scenario, flags },
+      { server, stores: storeServer, products: productServer, scenario, flags },
     );
     return json(status, responseBody);
   };

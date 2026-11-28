@@ -9,7 +9,6 @@ import { Avatar } from '@/components/Avatar';
 import { JsonLd } from '@/components/JsonLd';
 import { PageShell } from '@/components/PageShell';
 import { Price } from '@/components/Price';
-import { typeLabel } from '@/components/ProductCard';
 import { RefCodeBox } from '@/components/RefCodeBox';
 import { getProductPage } from '@/lib/data';
 import {
@@ -67,9 +66,7 @@ export default async function ProductPage({ params }: Props) {
         )}
       </div>
       <section className="flex flex-col gap-3 px-4 pt-5">
-        <span className="text-xs font-medium uppercase text-text-muted">
-          {typeLabel[product.type]}
-        </span>
+        <span className="text-xs font-medium uppercase text-text-muted">{product.typeName}</span>
         <h1 className="text-2xl font-bold text-text">{product.title}</h1>
         <Price price={product.price} compareAt={product.compareAtPrice} large />
         {product.description ? <p className="text-base text-text">{product.description}</p> : null}

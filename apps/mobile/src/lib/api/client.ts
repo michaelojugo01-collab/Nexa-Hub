@@ -4,8 +4,18 @@ import { secureStorage } from '@/lib/auth/secure-storage';
 import { signOutLocally } from '@/lib/auth/sign-out';
 import { config } from '@/lib/config';
 import { logger } from '@/lib/logger';
-import { createMockFetch, MockAuthServer, MockStoreServer, setMockLogger } from '@nexa/mocks';
-import { secureStorePersistence, storesSecureStorePersistence } from '@/mocks/persistence';
+import {
+  createMockFetch,
+  MockAuthServer,
+  MockProductServer,
+  MockStoreServer,
+  setMockLogger,
+} from '@nexa/mocks';
+import {
+  filePersistence,
+  secureStorePersistence,
+  storesSecureStorePersistence,
+} from '@/mocks/persistence';
 import { useMockControl } from '@/mocks/mock-control';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -24,6 +34,19 @@ export const mockStores = mockServer
   ? new MockStoreServer({ auth: mockServer, persistence: storesSecureStorePersistence })
   : null;
 
+/** The fake products backend (F4): uploads, scanning, publishing. */
+export const mockProducts =
+  mockServer && mockStores
+    ? new MockProductServer({
+        auth: mockServer,
+        stores: mockStores,
+        persistence: filePersistence('nexa-mock-products-v1.json'),
+        scanMs: config.mockDelayMs * 4,
+        processMs: config.mockDelayMs * 6,
+        rejectRate: () => (useMockControl.getState().filesRejected ? 1 : config.mockFileRejectRate),
+      })
+    : null;
+
 const transport: FetchLike | undefined = mockServer
   ? createMockFetch({
       delayMs: config.mockDelayMs,
@@ -31,6 +54,7 @@ const transport: FetchLike | undefined = mockServer
       scenario: config.mockScenario,
       server: mockServer,
       stores: mockStores ?? undefined,
+      products: mockProducts ?? undefined,
       getFlags: () => useMockControl.getState(),
     })
   : undefined;

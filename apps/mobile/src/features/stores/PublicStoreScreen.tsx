@@ -19,7 +19,6 @@ import { queryClient } from '@/lib/api/query-client';
 import { queryKeys } from '@/lib/api/query-keys';
 import { cn } from '@/lib/cn';
 import { useFeatureFlag } from '@/lib/flags';
-import { productTypeLabel } from '@/features/home/home-items';
 import { useAuthStore } from '@/stores/auth-store';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -297,7 +296,7 @@ function StoreBody({ store, asBuyer }: { store: Store; asBuyer: boolean }) {
                     priceKobo={item.product.price.amountKobo}
                     compareAtKobo={item.product.compareAtPrice?.amountKobo}
                     imageUrl={item.product.imageUrl}
-                    typeLabel={productTypeLabel[item.product.type]}
+                    typeLabel={item.product.typeName}
                     featured={item.product.featured}
                   />
                 </View>

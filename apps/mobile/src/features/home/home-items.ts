@@ -1,4 +1,4 @@
-import type { DiscoverHome, ProductSummary, ProductType } from '@nexa/api-contract';
+import type { DiscoverHome, ProductSummary } from '@nexa/api-contract';
 
 /** Flattened rows for the Home FlashList: section headings span both columns, products fill a grid. */
 export type HomeItem =
@@ -35,11 +35,3 @@ export function toHomeItems(home: DiscoverHome): HomeItem[] {
   }
   return items;
 }
-
-export const productTypeLabel: Record<ProductType, string> = {
-  digital: 'Digital',
-  ebook: 'Ebook',
-  course: 'Course',
-  service: 'Service',
-  physical: 'Physical',
-};

@@ -93,6 +93,14 @@ export function storeMetadata(store: Store): Metadata {
 }
 
 export function productMetadata(product: Product): Metadata {
+  const meta = productMetadataBase(product);
+  // Unlisted products open by link but are never indexed (F4).
+  return product.visibility === 'unlisted'
+    ? { ...meta, robots: { index: false, follow: false } }
+    : meta;
+}
+
+function productMetadataBase(product: Product): Metadata {
   const price = formatKobo(product.price.amountKobo);
   const title = `${product.title} – ${price}`;
   const description = clip(
@@ -104,7 +112,7 @@ export function productMetadata(product: Product): Metadata {
     title,
     description,
     image
-      ? { url: image, width: 600, height: 600, alt: product.title }
+      ? { url: image, alt: product.title }
       : { url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: site.name },
   );
 }
@@ -161,7 +169,7 @@ export function productJsonLd(product: Product) {
     sku: product.id,
     url: canonicalUrl(productPath(product)),
     brand: { '@type': 'Brand', name: product.storeInfo.name },
-    category: product.type,
+    category: product.category?.name ?? product.typeName,
     offers: offer(product, product.storeInfo.name),
   };
 }

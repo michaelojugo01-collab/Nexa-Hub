@@ -48,3 +48,23 @@ export type AllowedImageType = (typeof allowedImageTypes)[number];
 export function isAllowedImageType(type: string): type is AllowedImageType {
   return (allowedImageTypes as readonly string[]).includes(type);
 }
+
+// ── Products (F4) ───────────────────────────────────────────────────────────
+
+export const PRODUCT_TITLE_MAX = 80;
+export const PRODUCT_DESCRIPTION_MAX = 500;
+/** ₦100 minimum price, in kobo. */
+export const PRODUCT_MIN_PRICE_KOBO = 10_000;
+export const PRODUCT_TAGS_MAX = 5;
+export const PRODUCT_PREVIEW_PAGES_MAX = 5;
+/** Cover images are 4:3. */
+export const PRODUCT_COVER_ASPECT = 4 / 3;
+/** Bytes per multipart part (S3's minimum is 5 MB except the last part). */
+export const UPLOAD_PART_SIZE = 5 * 1024 * 1024;
+
+/** A link buyers get after paying: https only, with a real host. */
+export function isValidProductLink(link: string) {
+  if (!/^https:\/\/[^\s/$.?#][^\s]*$/i.test(link.trim())) return false;
+  const host = /^https:\/\/([^/?#:]+)/i.exec(link.trim())?.[1] ?? '';
+  return host.includes('.') && !host.endsWith('.');
+}

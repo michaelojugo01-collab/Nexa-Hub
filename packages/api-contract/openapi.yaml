@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Nexa Hub API
-  version: 0.4.0
+  version: 0.5.0
   description: |
-    Contract v0.4 — endpoints for F0 (discovery), F1 (accounts and authentication),
-    F2 (stores and profiles) and F3 (public web pages).
+    Contract v0.5 — endpoints for F0 (discovery), F1 (accounts and authentication),
+    F2 (stores and profiles), F3 (public web pages) and F4 (digital product catalogue).
     Operations marked `x-status: proposed` are not in the spec's endpoint list; see
     docs/decisions.md.
 
@@ -868,7 +868,11 @@ paths:
     get:
       tags: [Products]
       operationId: listProducts
-      summary: Live products, newest first
+      summary: Live products, newest first; or the seller's own products
+      description: |
+        Public: live, public products of public stores (never unlisted, draft or unpublished).
+        With `owner=me` (seller, signed in): the seller's own products in `state`, as
+        OwnProductPage, including sales counts and upload status.
       security:
         - {}
         - bearerAuth: []
@@ -893,13 +897,28 @@ paths:
           description: Only products from this store
           schema:
             $ref: '#/components/schemas/Slug'
+        - name: owner
+          in: query
+          required: false
+          description: "`me`: the signed-in seller's own products (needs a token)."
+          schema:
+            type: string
+            enum: [me]
+        - name: state
+          in: query
+          required: false
+          description: With owner=me. Default live.
+          schema:
+            $ref: '#/components/schemas/ProductState'
       responses:
         '200':
-          description: One page of products
+          description: One page of products (OwnProductPage when owner=me)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductPage'
+                oneOf:
+                  - $ref: '#/components/schemas/ProductPage'
+                  - $ref: '#/components/schemas/OwnProductPage'
               examples:
                 firstPage:
                   $ref: '#/components/examples/ProductPageFirst'
@@ -909,6 +928,417 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Start a product (a draft)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+            example: { typeCode: A1, title: Ankara Pattern Guide }
+      responses:
+        '201':
+          description: The new draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnProduct'
+        '400':
+          description: Unknown type, title too long, or a mode the type doesn't allow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                priceTooLow:
+                  value: { code: PRICE_TOO_LOW, message: The minimum price is ₦100. }
+                titleTooLong:
+                  value: { code: TITLE_TOO_LONG, message: Titles can be up to 80 characters. }
+                categoryNotAllowed:
+                  value:
+                    code: CATEGORY_NOT_ALLOWED
+                    message: That category isn’t allowed on Nexa Hub.
+                linkInvalid:
+                  value: { code: LINK_INVALID, message: Enter a full https:// link. }
+                modeNotAllowed:
+                  value:
+                    code: MODE_NOT_ALLOWED
+                    message: This product type can’t be delivered that way.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotSeller'
+
+  /v1/products/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Products]
+      operationId: getOwnProduct
+      summary: The seller's own product (any state)
+      responses:
+        '200':
+          description: The product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnProduct'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update a product (also used by draft autosave)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        '200':
+          description: The updated product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnProduct'
+        '400':
+          description: A field breaks a rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                priceTooLow:
+                  value: { code: PRICE_TOO_LOW, message: The minimum price is ₦100. }
+                titleTooLong:
+                  value: { code: TITLE_TOO_LONG, message: Titles can be up to 80 characters. }
+                categoryNotAllowed:
+                  value:
+                    code: CATEGORY_NOT_ALLOWED
+                    message: That category isn’t allowed on Nexa Hub.
+                linkInvalid:
+                  value: { code: LINK_INVALID, message: Enter a full https:// link. }
+                modeNotAllowed:
+                  value:
+                    code: MODE_NOT_ALLOWED
+                    message: This product type can’t be delivered that way.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/products/{id}/uploads:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Products]
+      operationId: startProductUpload
+      summary: Start (or resume) a pre-signed multipart upload
+      description: |
+        The app PUTs each part straight to storage (never through the API) and keeps each
+        part's ETag. Send `uploadId` again to resume: the answer lists the parts storage already
+        has and fresh URLs for the rest. Finish with .../complete.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadStart'
+            example:
+              kind: main
+              fileName: ankara-guide.pdf
+              contentType: application/pdf
+              sizeBytes: 14680064
+      responses:
+        '201':
+          description: Where to send the parts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultipartUpload'
+        '400':
+          description: File type or size not allowed for this product type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                tooLarge:
+                  value: { code: FILE_TOO_LARGE, message: Ebooks can be up to 200 MB. }
+                typeNotAllowed:
+                  value: { code: FILE_TYPE_NOT_ALLOWED, message: Upload a PDF. }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/products/{id}/uploads/{uploadId}/complete:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: uploadId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Products]
+      operationId: completeProductUpload
+      summary: Finish a multipart upload (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec lists pre-signed uploads but not how multipart ends. The asset then
+        moves scanning → processing → ready (or rejected).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadComplete'
+      responses:
+        '200':
+          description: The asset (now scanning)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductAsset'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/products/{id}/uploads/{uploadId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: uploadId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags: [Products]
+      operationId: abortProductUpload
+      summary: Cancel a multipart upload (proposed)
+      x-status: proposed
+      description: PROPOSED. Storage drops the parts already sent.
+      responses:
+        '204':
+          description: Cancelled
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/products/{id}/publish:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Products]
+      operationId: publishProduct
+      summary: Publish a draft
+      description: |
+        Refused until the main content is ready (file asset ready, or a valid link), the cover
+        is set, the price is at least ₦100, and — for types that need it — the rights
+        declaration is recorded. Flagged listings go to pending_review instead of live.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: The product, now live (or pending_review)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnProduct'
+        '409':
+          description: Not ready to publish
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                assetNotReady:
+                  value: { code: ASSET_NOT_READY, message: Your file is still being checked. }
+                coverRequired:
+                  value: { code: COVER_REQUIRED, message: Add a cover image. }
+                rights:
+                  value:
+                    code: RIGHTS_DECLARATION_REQUIRED
+                    message: Confirm you own the rights to this content.
+                priceTooLow:
+                  value: { code: PRICE_TOO_LOW, message: The minimum price is ₦100. }
+                linkInvalid:
+                  value: { code: LINK_INVALID, message: Add the link buyers get. }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/products/{id}/unpublish:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Products]
+      operationId: unpublishProduct
+      summary: Take a product off sale (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED. Leaves every public list, the sitemap and search; the record stays and past
+        buyers keep access.
+      responses:
+        '200':
+          description: The product, now unpublished
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnProduct'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/products/{id}/republish:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Products]
+      operationId: republishProduct
+      summary: Put an unpublished product back on sale (proposed)
+      x-status: proposed
+      description: PROPOSED. Same checks as publish; keeps its visibility.
+      responses:
+        '200':
+          description: The product, live again
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnProduct'
+        '409':
+          description: Not ready (same codes as publish)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/product-types:
+    get:
+      tags: [Products]
+      operationId: listProductTypes
+      summary: The digital product types (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED (approved for F4) — types are data, not code: name, group, allowed content
+        modes, file rules, rights requirement and preview kind.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All types (one page)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductTypePage'
+
+  /v1/tags:
+    get:
+      tags: [Products]
+      operationId: listTags
+      summary: Tag suggestions (proposed)
+      x-status: proposed
+      description: PROPOSED — tags are data; suggestions for the tag field.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        '200':
+          description: Matching tags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagPage'
+
+  /v1/fees/preview:
+    get:
+      tags: [Products]
+      operationId: previewFee
+      summary: What the seller receives for a price (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED. The server applies the current fee (5% + ₦10); the app only shows the answer.
+      parameters:
+        - name: priceKobo
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+          example: 150000
+      responses:
+        '200':
+          description: The breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeePreview'
+              example:
+                price: { amountKobo: 150000, currency: NGN }
+                fee: { amountKobo: 8500, currency: NGN }
+                youReceive: { amountKobo: 141500, currency: NGN }
+                label: 5% + ₦10 per sale
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /v1/stores/{storeSlug}/products/{productSlug}:
     get:
@@ -945,7 +1375,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Product'
         '404':
-          description: Unknown or unpublished product, or a private store
+          description: Unknown or draft product, or a private store
           content:
             application/json:
               schema:
@@ -953,6 +1383,15 @@ paths:
               example:
                 code: NOT_FOUND
                 message: We couldn’t find that product.
+        '410':
+          description: The product was unpublished (no longer available)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: PRODUCT_UNPUBLISHED
+                message: This product is no longer available.
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1097,9 +1536,463 @@ components:
       type: string
       enum: [buyer, seller, ambassador]
 
-    ProductType:
+    ContentMode:
       type: string
-      enum: [digital, ebook, course, service, physical]
+      enum: [STREAM_ONLY, DOWNLOAD_LIMITED, LINK]
+      description: |
+        How buyers get a digital product. STREAM_ONLY: watched or listened to in the app.
+        DOWNLOAD_LIMITED: files (PDF first) with a download limit. LINK: an external link
+        revealed only after purchase.
+
+    ProductState:
+      type: string
+      enum: [draft, pending_review, live, unpublished]
+      description: |
+        draft → live (or pending_review when flagged) ⇄ unpublished. Unpublished products leave
+        every public list but are never deleted: past buyers keep access.
+
+    ProductVisibility:
+      type: string
+      enum: [public, unlisted]
+      description: For live products. Unlisted products open by link but are never listed.
+
+    ProductTypeDef:
+      type: object
+      description: One of the digital product types (A1–A12, I4). Data, not code.
+      required:
+        [code, name, description, group, defaultCategorySlug, modes, rightsRequired, files, preview]
+      properties:
+        code:
+          type: string
+          example: A1
+        name:
+          type: string
+          example: Ebooks and guides
+        description:
+          type: string
+          example: A PDF guide or ebook buyers read in the app.
+        group:
+          type: string
+          description: Heading for the type picker.
+          example: Read and learn
+        defaultCategorySlug:
+          type: string
+        modes:
+          type: array
+          description: Allowed content modes; the first is the default.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ContentMode'
+        rightsRequired:
+          type: boolean
+          description: The seller must declare they own the rights (music, audio, video).
+        files:
+          description: Main file rules for DOWNLOAD_LIMITED and STREAM_ONLY; null for link-only.
+          oneOf:
+            - $ref: '#/components/schemas/FileRules'
+            - type: 'null'
+        preview:
+          type: string
+          enum: [pages, video_clip, audio_clip, none]
+          description: The kind of free preview buyers can see.
+
+    FileRules:
+      type: object
+      required: [extensions, contentTypes, maxBytes, label]
+      properties:
+        extensions:
+          type: array
+          items:
+            type: string
+          example: [pdf]
+        contentTypes:
+          type: array
+          items:
+            type: string
+          example: [application/pdf]
+        maxBytes:
+          type: integer
+          format: int64
+        label:
+          type: string
+          example: PDF, up to 200 MB
+
+    ProductTypePage:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductTypeDef'
+        nextCursor:
+          type: [string, 'null']
+
+    Tag:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+
+    TagPage:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        nextCursor:
+          type: [string, 'null']
+
+    FeePreview:
+      type: object
+      description: Computed by the server. The app never calculates fees.
+      required: [price, fee, youReceive, label]
+      properties:
+        price:
+          $ref: '#/components/schemas/Money'
+        fee:
+          $ref: '#/components/schemas/Money'
+        youReceive:
+          $ref: '#/components/schemas/Money'
+        label:
+          type: string
+          example: 5% + ₦10 per sale
+
+    AssetKind:
+      type: string
+      enum: [main, cover, preview]
+
+    AssetStatus:
+      type: string
+      enum: [uploading, scanning, processing, ready, rejected]
+
+    ProductAsset:
+      type: object
+      description: Owner-only. Never contains a file URL.
+      required:
+        [
+          id,
+          kind,
+          status,
+          rejectionReason,
+          fileName,
+          contentType,
+          sizeBytes,
+          pageCount,
+          durationSeconds,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        kind:
+          $ref: '#/components/schemas/AssetKind'
+        status:
+          $ref: '#/components/schemas/AssetStatus'
+        rejectionReason:
+          type: [string, 'null']
+          example: The file failed the virus scan.
+        fileName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        pageCount:
+          type: [integer, 'null']
+          description: PDFs, once processed.
+        durationSeconds:
+          type: [integer, 'null']
+          description: Audio and video, once processed.
+        createdAt:
+          type: string
+          format: date-time
+
+    ProductPreview:
+      type: object
+      description: The free preview, the only content of a product that is public.
+      required: [pages, clipUrl, clipKind]
+      properties:
+        pages:
+          type: array
+          description: Sample pages as images (PDF types).
+          items:
+            type: string
+            format: uri
+        clipUrl:
+          type: [string, 'null']
+          format: uri
+        clipKind:
+          type: [string, 'null']
+          enum: [video, audio, null]
+
+    ContentFacts:
+      type: object
+      description: Public facts about what the buyer gets. Never a file URL or the link.
+      required: [pageCount, durationSeconds, fileSizeBytes, fileLabel]
+      properties:
+        pageCount:
+          type: [integer, 'null']
+        durationSeconds:
+          type: [integer, 'null']
+        fileSizeBytes:
+          type: [integer, 'null']
+          format: int64
+        fileLabel:
+          type: [string, 'null']
+          example: PDF
+
+    OwnProduct:
+      description: The seller's own product, any state. Includes owner-only fields.
+      type: object
+      required:
+        [
+          id,
+          slug,
+          typeCode,
+          typeName,
+          contentMode,
+          state,
+          visibility,
+          title,
+          description,
+          categorySlug,
+          tags,
+          price,
+          coverUrl,
+          linkUrl,
+          previewPages,
+          assets,
+          preview,
+          rightsDeclaredAt,
+          salesCount,
+          store,
+          publishedAt,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id:
+          type: string
+        slug:
+          $ref: '#/components/schemas/ProductSlug'
+        typeCode:
+          type: string
+        typeName:
+          type: string
+        contentMode:
+          $ref: '#/components/schemas/ContentMode'
+        state:
+          $ref: '#/components/schemas/ProductState'
+        visibility:
+          $ref: '#/components/schemas/ProductVisibility'
+        title:
+          type: string
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 500
+        categorySlug:
+          type: [string, 'null']
+        tags:
+          type: array
+          items:
+            type: string
+        price:
+          description: null until the seller sets one.
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        coverUrl:
+          type: [string, 'null']
+          format: uri
+        linkUrl:
+          type: [string, 'null']
+          format: uri
+          description: LINK products only. Owner-only; never in public responses.
+        previewPages:
+          type: integer
+          minimum: 0
+          maximum: 5
+          description: PDF types; how many sample pages to show.
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductAsset'
+        preview:
+          $ref: '#/components/schemas/ProductPreview'
+        rightsDeclaredAt:
+          type: [string, 'null']
+          format: date-time
+          description: Recorded by the server when the seller ticks the declaration.
+        salesCount:
+          type: integer
+          minimum: 0
+        store:
+          type: object
+          required: [slug, name]
+          properties:
+            slug:
+              $ref: '#/components/schemas/Slug'
+            name:
+              type: string
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OwnProductPage:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnProduct'
+        nextCursor:
+          type: [string, 'null']
+
+    ProductCreate:
+      type: object
+      required: [typeCode]
+      properties:
+        typeCode:
+          type: string
+          example: A1
+        contentMode:
+          $ref: '#/components/schemas/ContentMode'
+        title:
+          type: string
+          maxLength: 80
+
+    ProductUpdate:
+      type: object
+      description: Send only what changed. Drafts may be incomplete; publish checks the rest.
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 500
+        categorySlug:
+          type: string
+        tags:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+        price:
+          $ref: '#/components/schemas/Money'
+        contentMode:
+          $ref: '#/components/schemas/ContentMode'
+        linkUrl:
+          type: [string, 'null']
+        previewPages:
+          type: integer
+          minimum: 0
+          maximum: 5
+        coverAssetId:
+          type: string
+        mainAssetId:
+          type: string
+          description: Replaces the main file (on live products, past buyers get the new file).
+        previewAssetId:
+          type: [string, 'null']
+        rightsDeclared:
+          type: boolean
+          description: true records the declaration time on the server.
+
+    PublishRequest:
+      type: object
+      required: [visibility]
+      properties:
+        visibility:
+          $ref: '#/components/schemas/ProductVisibility'
+
+    UploadStart:
+      type: object
+      required: [kind, fileName, contentType, sizeBytes]
+      properties:
+        kind:
+          $ref: '#/components/schemas/AssetKind'
+        fileName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+        uploadId:
+          type: string
+          description: Resume an earlier upload; returns fresh URLs for the missing parts only.
+
+    MultipartUpload:
+      type: object
+      required: [uploadId, assetId, partSize, partCount, completedParts, parts, expiresAt]
+      properties:
+        uploadId:
+          type: string
+        assetId:
+          type: string
+        partSize:
+          type: integer
+          description: Bytes per part (the last part may be smaller).
+        partCount:
+          type: integer
+        completedParts:
+          type: array
+          description: Parts storage already has (on resume).
+          items:
+            $ref: '#/components/schemas/CompletedPart'
+        parts:
+          type: array
+          description: Pre-signed PUT URLs for the parts still to send.
+          items:
+            type: object
+            required: [partNumber, url]
+            properties:
+              partNumber:
+                type: integer
+                minimum: 1
+              url:
+                type: string
+                format: uri
+        expiresAt:
+          type: string
+          format: date-time
+
+    CompletedPart:
+      type: object
+      required: [partNumber, etag]
+      properties:
+        partNumber:
+          type: integer
+          minimum: 1
+        etag:
+          type: string
+
+    UploadComplete:
+      type: object
+      required: [parts]
+      properties:
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletedPart'
 
     StoreSummary:
       type: object
@@ -1341,7 +2234,20 @@ components:
 
     ProductSummary:
       type: object
-      required: [id, slug, title, type, price, compareAtPrice, imageUrl, store, featured]
+      required:
+        [
+          id,
+          slug,
+          title,
+          typeCode,
+          typeName,
+          contentMode,
+          price,
+          compareAtPrice,
+          imageUrl,
+          store,
+          featured,
+        ]
       properties:
         id:
           type: string
@@ -1349,8 +2255,14 @@ components:
           $ref: '#/components/schemas/ProductSlug'
         title:
           type: string
-        type:
-          $ref: '#/components/schemas/ProductType'
+        typeCode:
+          type: string
+          description: One of GET /v1/product-types (e.g. A1).
+        typeName:
+          type: string
+          example: Ebooks and guides
+        contentMode:
+          $ref: '#/components/schemas/ContentMode'
         price:
           $ref: '#/components/schemas/Money'
         compareAtPrice:
@@ -1373,12 +2285,40 @@ components:
           type: boolean
 
     Product:
-      description: A live product as public pages show it (PROPOSED, F3).
+      description: |
+        A live product as public pages show it (PROPOSED, F3/F4). SECURITY: never contains the
+        LINK URL or any file URL; only the cover, preview pages and preview clip are public.
       allOf:
         - $ref: '#/components/schemas/ProductSummary'
         - type: object
-          required: [description, images, storeInfo, publishedAt, redirectTo]
+          required:
+            [
+              description,
+              images,
+              storeInfo,
+              publishedAt,
+              redirectTo,
+              visibility,
+              category,
+              tags,
+              preview,
+              content,
+            ]
           properties:
+            visibility:
+              $ref: '#/components/schemas/ProductVisibility'
+            category:
+              oneOf:
+                - $ref: '#/components/schemas/Category'
+                - type: 'null'
+            tags:
+              type: array
+              items:
+                $ref: '#/components/schemas/Tag'
+            preview:
+              $ref: '#/components/schemas/ProductPreview'
+            content:
+              $ref: '#/components/schemas/ContentFacts'
             description:
               type: [string, 'null']
               maxLength: 500
@@ -1953,7 +2893,9 @@ components:
           - id: prd_01HZX4A0B1
             slug: ankara-print-pattern-pack-40-designs
             title: Ankara Print Pattern Pack (40 designs)
-            type: digital
+            typeCode: A3
+            typeName: Design assets
+            contentMode: DOWNLOAD_LIMITED
             price: { amountKobo: 450000, currency: NGN }
             compareAtPrice: null
             imageUrl: null
@@ -1974,7 +2916,9 @@ components:
           - id: prd_01HZX4A0B1
             slug: ankara-print-pattern-pack-40-designs
             title: Ankara Print Pattern Pack (40 designs)
-            type: digital
+            typeCode: A3
+            typeName: Design assets
+            contentMode: DOWNLOAD_LIMITED
             price: { amountKobo: 450000, currency: NGN }
             compareAtPrice: null
             imageUrl: null
@@ -1984,7 +2928,9 @@ components:
           - id: prd_01HZX4C7D2
             slug: jamb-physics-past-questions-2015-2025
             title: JAMB Physics Past Questions 2015–2025
-            type: ebook
+            typeCode: A10
+            typeName: Study guides and original notes
+            contentMode: DOWNLOAD_LIMITED
             price: { amountKobo: 150000, currency: NGN }
             compareAtPrice: { amountKobo: 250000, currency: NGN }
             imageUrl: null

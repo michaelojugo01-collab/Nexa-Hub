@@ -2,15 +2,9 @@ import type { ApiErrorBody } from '@nexa/api-contract';
 
 import type { MockServerOptions } from './auth/server';
 import { MockAuthServer } from './auth/server';
+import type { MockProductServer } from './products/server';
 import type { MockStoreServer } from './stores/server';
-import {
-  categories,
-  discoverHome,
-  discoverHomeEmpty,
-  productRecords,
-  products,
-  toProductSummary,
-} from './fixtures';
+import { categories, discoverHomeEmpty } from './fixtures';
 
 export type MockScenario = 'default' | 'empty';
 
@@ -27,6 +21,7 @@ type Ctx = {
   flags: MockFlags;
   server: MockAuthServer;
   stores: MockStoreServer;
+  products: MockProductServer;
 };
 
 type Handler = (ctx: Ctx) => MockResponse | Promise<MockResponse>;
@@ -105,41 +100,84 @@ const routes = [
   ),
 
   // Discovery
-  route('GET', '/v1/discover/home', ({ scenario }) =>
-    ok(scenario === 'empty' ? discoverHomeEmpty : discoverHome),
+  route('GET', '/v1/discover/home', async ({ scenario, products }) =>
+    ok(scenario === 'empty' ? discoverHomeEmpty : await products.discoverHome()),
   ),
   route('GET', '/v1/discover/categories', ({ query, scenario }) =>
     paginate(scenario === 'empty' ? [] : categories, query, 50),
   ),
-  route('GET', '/v1/products', async ({ query, scenario, stores, authorization }) => {
+  route('GET', '/v1/products', async ({ query, scenario, stores, products, authorization }) => {
+    if (query.get('owner') === 'me') {
+      return products.listMine(authorization, query.get('state'), (all) =>
+        paginate(all, query, 20),
+      );
+    }
     let storeSlug = query.get('storeSlug');
     if (storeSlug) {
       const found = await stores.productStore(authorization, storeSlug);
       if (found.error) return found.error;
       storeSlug = found.slug;
     }
-    const visible = await stores.publicStoreSlugs();
+    // productStore() already allowed this store (public, or the owner's own private one).
     const all =
-      scenario === 'empty'
-        ? []
-        : storeSlug
-          ? // productStore() already allowed this store (public, or the owner's own).
-            productRecords
-              .filter((p) => p.status === 'live' && p.store.slug === storeSlug)
-              .map(toProductSummary)
-          : products.filter((p) => visible.has(p.store.slug));
+      scenario === 'empty' ? [] : await products.listed(storeSlug ?? undefined, !!storeSlug);
     return paginate(all, query, 20);
   }),
 
+  // Products (F4). Literal sub-paths before /v1/products/{id}.
+  route('GET', '/v1/product-types', ({ products }) => products.listTypes()),
+  route('GET', '/v1/tags', ({ products, query }) =>
+    products.listTags(query.get('q') ?? '', Number(query.get('limit') ?? 10)),
+  ),
+  route('GET', '/v1/fees/preview', ({ products, query }) =>
+    products.feePreview(Number(query.get('priceKobo'))),
+  ),
+  route('POST', '/v1/products', ({ products, authorization, body }) =>
+    products.create(authorization, body as never),
+  ),
+  route('GET', '/v1/products/{id}', ({ products, authorization, params }) =>
+    products.get(authorization, params.id ?? ''),
+  ),
+  route('PATCH', '/v1/products/{id}', ({ products, authorization, params, body }) =>
+    products.update(authorization, params.id ?? '', body as never),
+  ),
+  route('POST', '/v1/products/{id}/uploads', ({ products, authorization, params, body }) =>
+    products.startUpload(authorization, params.id ?? '', body as never),
+  ),
+  route(
+    'POST',
+    '/v1/products/{id}/uploads/{uploadId}/complete',
+    ({ products, authorization, params, body }) =>
+      products.completeUpload(
+        authorization,
+        params.id ?? '',
+        params.uploadId ?? '',
+        body.parts as never,
+        typeof body.mockLocalUri === 'string' ? body.mockLocalUri : undefined,
+      ),
+  ),
+  route('DELETE', '/v1/products/{id}/uploads/{uploadId}', ({ products, authorization, params }) =>
+    products.abortUpload(authorization, params.id ?? '', params.uploadId ?? ''),
+  ),
+  route('POST', '/v1/products/{id}/publish', ({ products, authorization, params, body }) =>
+    products.publish(authorization, params.id ?? '', body.visibility as never),
+  ),
+  route('POST', '/v1/products/{id}/unpublish', ({ products, authorization, params }) =>
+    products.unpublish(authorization, params.id ?? ''),
+  ),
+  route('POST', '/v1/products/{id}/republish', ({ products, authorization, params }) =>
+    products.republish(authorization, params.id ?? ''),
+  ),
+
   // Public web (F3)
-  route('GET', '/v1/stores/{storeSlug}/products/{productSlug}', ({ stores, params }) =>
-    stores.getPublicProduct(params.storeSlug ?? '', params.productSlug ?? ''),
+  route('GET', '/v1/stores/{storeSlug}/products/{productSlug}', ({ products, params }) =>
+    products.getPublic(params.storeSlug ?? '', params.productSlug ?? ''),
   ),
   route('GET', '/v1/users/{username}', ({ stores, params }) =>
     stores.getPublicProfile(params.username ?? ''),
   ),
-  route('GET', '/v1/sitemap', async ({ stores, query, scenario }) =>
-    paginate(scenario === 'empty' ? [] : await stores.sitemapEntries(), query, 1000, 1000),
+  route('GET', '/v1/sitemap', async ({ products, query, scenario }) =>
+    paginate(scenario === 'empty' ? [] : await products.sitemapEntries(), query, 1000, 1000),
   ),
 
   // Stores (F2). The literal paths come before /v1/stores/{slug}.
@@ -196,6 +234,7 @@ export async function handleMockRequest(
   options: {
     server: MockAuthServer;
     stores: MockStoreServer;
+    products: MockProductServer;
     scenario?: MockScenario;
     flags?: MockFlags;
   },
@@ -217,6 +256,7 @@ export async function handleMockRequest(
       flags: options.flags ?? { smsDown: false, rateLimited: false },
       server: options.server,
       stores: options.stores,
+      products: options.products,
     });
   }
   return error(404, { code: 'NOT_FOUND', message: `No mock for ${request.method} ${pathname}` });

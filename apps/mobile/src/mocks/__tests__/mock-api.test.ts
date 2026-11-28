@@ -32,7 +32,8 @@ describe('mock API through the typed client', () => {
   });
 
   it('returns a store by slug', async () => {
-    await expect(api.getStore('adaezeprints')).resolves.toEqual(stores[0]);
+    // productCount is live: the listed products of the store (F4).
+    await expect(api.getStore('adaezeprints')).resolves.toEqual({ ...stores[0], productCount: 6 });
   });
 
   it('throws an ApiError with the contract error shape for unknown stores', async () => {

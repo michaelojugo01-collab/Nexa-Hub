@@ -25,6 +25,16 @@ export const config = {
     1,
     Math.max(0, toNumber(process.env.EXPO_PUBLIC_MOCK_UPLOAD_FAILURE_RATE, 0.15)),
   ),
+  /** Share of finished product uploads that fail the mock virus scan. */
+  mockFileRejectRate: Math.min(
+    1,
+    Math.max(0, toNumber(process.env.EXPO_PUBLIC_MOCK_FILE_REJECT_RATE, 0.1)),
+  ),
+  /** Share of upload parts that fail as if the network dropped (mock mode). */
+  mockNetworkDropRate: Math.min(
+    1,
+    Math.max(0, toNumber(process.env.EXPO_PUBLIC_MOCK_NETWORK_DROP_RATE, 0.05)),
+  ),
   mockScenario: (process.env.EXPO_PUBLIC_MOCK_SCENARIO === 'empty'
     ? 'empty'
     : 'default') satisfies MockScenario as MockScenario,

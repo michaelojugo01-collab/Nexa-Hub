@@ -22,5 +22,6 @@ export {
   type MockScenario,
 } from './handlers';
 export { createMockFetch, type MockFetchOptions } from './mock-fetch';
+export { MockProductServer, type MockProductServerOptions } from './products/server';
 export { memoryPersistence, type MockPersistence } from './persistence';
 export { setMockLogger, type MockLogger } from './log';

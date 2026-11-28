@@ -395,8 +395,235 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Live products, newest first */
+    /**
+     * Live products, newest first; or the seller's own products
+     * @description Public: live, public products of public stores (never unlisted, draft or unpublished).
+     *     With `owner=me` (seller, signed in): the seller's own products in `state`, as
+     *     OwnProductPage, including sales counts and upload status.
+     */
     get: operations['listProducts'];
+    put?: never;
+    /** Start a product (a draft) */
+    post: operations['createProduct'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/products/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    /** The seller's own product (any state) */
+    get: operations['getOwnProduct'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update a product (also used by draft autosave) */
+    patch: operations['updateProduct'];
+    trace?: never;
+  };
+  '/v1/products/{id}/uploads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start (or resume) a pre-signed multipart upload
+     * @description The app PUTs each part straight to storage (never through the API) and keeps each
+     *     part's ETag. Send `uploadId` again to resume: the answer lists the parts storage already
+     *     has and fresh URLs for the rest. Finish with .../complete.
+     */
+    post: operations['startProductUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/products/{id}/uploads/{uploadId}/complete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        uploadId: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Finish a multipart upload (proposed)
+     * @description PROPOSED — the spec lists pre-signed uploads but not how multipart ends. The asset then
+     *     moves scanning → processing → ready (or rejected).
+     */
+    post: operations['completeProductUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/products/{id}/uploads/{uploadId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        uploadId: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Cancel a multipart upload (proposed)
+     * @description PROPOSED. Storage drops the parts already sent.
+     */
+    delete: operations['abortProductUpload'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/products/{id}/publish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Publish a draft
+     * @description Refused until the main content is ready (file asset ready, or a valid link), the cover
+     *     is set, the price is at least ₦100, and — for types that need it — the rights
+     *     declaration is recorded. Flagged listings go to pending_review instead of live.
+     */
+    post: operations['publishProduct'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/products/{id}/unpublish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Take a product off sale (proposed)
+     * @description PROPOSED. Leaves every public list, the sitemap and search; the record stays and past
+     *     buyers keep access.
+     */
+    post: operations['unpublishProduct'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/products/{id}/republish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Put an unpublished product back on sale (proposed)
+     * @description PROPOSED. Same checks as publish; keeps its visibility.
+     */
+    post: operations['republishProduct'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/product-types': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The digital product types (proposed)
+     * @description PROPOSED (approved for F4) — types are data, not code: name, group, allowed content
+     *     modes, file rules, rights requirement and preview kind.
+     */
+    get: operations['listProductTypes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/tags': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tag suggestions (proposed)
+     * @description PROPOSED — tags are data; suggestions for the tag field.
+     */
+    get: operations['listTags'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/fees/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * What the seller receives for a price (proposed)
+     * @description PROPOSED. The server applies the current fee (5% + ₦10); the app only shows the answer.
+     */
+    get: operations['previewFee'];
     put?: never;
     post?: never;
     delete?: never;
@@ -500,8 +727,234 @@ export interface components {
     Slug: string;
     /** @enum {string} */
     Role: 'buyer' | 'seller' | 'ambassador';
+    /**
+     * @description How buyers get a digital product. STREAM_ONLY: watched or listened to in the app.
+     *     DOWNLOAD_LIMITED: files (PDF first) with a download limit. LINK: an external link
+     *     revealed only after purchase.
+     * @enum {string}
+     */
+    ContentMode: 'STREAM_ONLY' | 'DOWNLOAD_LIMITED' | 'LINK';
+    /**
+     * @description draft → live (or pending_review when flagged) ⇄ unpublished. Unpublished products leave
+     *     every public list but are never deleted: past buyers keep access.
+     * @enum {string}
+     */
+    ProductState: 'draft' | 'pending_review' | 'live' | 'unpublished';
+    /**
+     * @description For live products. Unlisted products open by link but are never listed.
+     * @enum {string}
+     */
+    ProductVisibility: 'public' | 'unlisted';
+    /** @description One of the digital product types (A1–A12, I4). Data, not code. */
+    ProductTypeDef: {
+      /** @example A1 */
+      code: string;
+      /** @example Ebooks and guides */
+      name: string;
+      /** @example A PDF guide or ebook buyers read in the app. */
+      description: string;
+      /**
+       * @description Heading for the type picker.
+       * @example Read and learn
+       */
+      group: string;
+      defaultCategorySlug: string;
+      /** @description Allowed content modes; the first is the default. */
+      modes: components['schemas']['ContentMode'][];
+      /** @description The seller must declare they own the rights (music, audio, video). */
+      rightsRequired: boolean;
+      /** @description Main file rules for DOWNLOAD_LIMITED and STREAM_ONLY; null for link-only. */
+      files: components['schemas']['FileRules'] | null;
+      /**
+       * @description The kind of free preview buyers can see.
+       * @enum {string}
+       */
+      preview: 'pages' | 'video_clip' | 'audio_clip' | 'none';
+    };
+    FileRules: {
+      /**
+       * @example [
+       *       "pdf"
+       *     ]
+       */
+      extensions: string[];
+      /**
+       * @example [
+       *       "application/pdf"
+       *     ]
+       */
+      contentTypes: string[];
+      /** Format: int64 */
+      maxBytes: number;
+      /** @example PDF, up to 200 MB */
+      label: string;
+    };
+    ProductTypePage: {
+      data: components['schemas']['ProductTypeDef'][];
+      nextCursor: string | null;
+    };
+    Tag: {
+      slug: string;
+      name: string;
+    };
+    TagPage: {
+      data: components['schemas']['Tag'][];
+      nextCursor: string | null;
+    };
+    /** @description Computed by the server. The app never calculates fees. */
+    FeePreview: {
+      price: components['schemas']['Money'];
+      fee: components['schemas']['Money'];
+      youReceive: components['schemas']['Money'];
+      /** @example 5% + ₦10 per sale */
+      label: string;
+    };
     /** @enum {string} */
-    ProductType: 'digital' | 'ebook' | 'course' | 'service' | 'physical';
+    AssetKind: 'main' | 'cover' | 'preview';
+    /** @enum {string} */
+    AssetStatus: 'uploading' | 'scanning' | 'processing' | 'ready' | 'rejected';
+    /** @description Owner-only. Never contains a file URL. */
+    ProductAsset: {
+      id: string;
+      kind: components['schemas']['AssetKind'];
+      status: components['schemas']['AssetStatus'];
+      /** @example The file failed the virus scan. */
+      rejectionReason: string | null;
+      fileName: string;
+      contentType: string;
+      /** Format: int64 */
+      sizeBytes: number;
+      /** @description PDFs, once processed. */
+      pageCount: number | null;
+      /** @description Audio and video, once processed. */
+      durationSeconds: number | null;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    /** @description The free preview, the only content of a product that is public. */
+    ProductPreview: {
+      /** @description Sample pages as images (PDF types). */
+      pages: string[];
+      /** Format: uri */
+      clipUrl: string | null;
+      /** @enum {string|null} */
+      clipKind: 'video' | 'audio' | null;
+    };
+    /** @description Public facts about what the buyer gets. Never a file URL or the link. */
+    ContentFacts: {
+      pageCount: number | null;
+      durationSeconds: number | null;
+      /** Format: int64 */
+      fileSizeBytes: number | null;
+      /** @example PDF */
+      fileLabel: string | null;
+    };
+    /** @description The seller's own product, any state. Includes owner-only fields. */
+    OwnProduct: {
+      id: string;
+      slug: components['schemas']['ProductSlug'];
+      typeCode: string;
+      typeName: string;
+      contentMode: components['schemas']['ContentMode'];
+      state: components['schemas']['ProductState'];
+      visibility: components['schemas']['ProductVisibility'];
+      title: string;
+      description: string;
+      categorySlug: string | null;
+      tags: string[];
+      /** @description null until the seller sets one. */
+      price: components['schemas']['Money'] | null;
+      /** Format: uri */
+      coverUrl: string | null;
+      /**
+       * Format: uri
+       * @description LINK products only. Owner-only; never in public responses.
+       */
+      linkUrl: string | null;
+      /** @description PDF types; how many sample pages to show. */
+      previewPages: number;
+      assets: components['schemas']['ProductAsset'][];
+      preview: components['schemas']['ProductPreview'];
+      /**
+       * Format: date-time
+       * @description Recorded by the server when the seller ticks the declaration.
+       */
+      rightsDeclaredAt: string | null;
+      salesCount: number;
+      store: {
+        slug: components['schemas']['Slug'];
+        name: string;
+      };
+      /** Format: date-time */
+      publishedAt: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    OwnProductPage: {
+      data: components['schemas']['OwnProduct'][];
+      nextCursor: string | null;
+    };
+    ProductCreate: {
+      /** @example A1 */
+      typeCode: string;
+      contentMode?: components['schemas']['ContentMode'];
+      title?: string;
+    };
+    /** @description Send only what changed. Drafts may be incomplete; publish checks the rest. */
+    ProductUpdate: {
+      title?: string;
+      description?: string;
+      categorySlug?: string;
+      tags?: string[];
+      price?: components['schemas']['Money'];
+      contentMode?: components['schemas']['ContentMode'];
+      linkUrl?: string | null;
+      previewPages?: number;
+      coverAssetId?: string;
+      /** @description Replaces the main file (on live products, past buyers get the new file). */
+      mainAssetId?: string;
+      previewAssetId?: string | null;
+      /** @description true records the declaration time on the server. */
+      rightsDeclared?: boolean;
+    };
+    PublishRequest: {
+      visibility: components['schemas']['ProductVisibility'];
+    };
+    UploadStart: {
+      kind: components['schemas']['AssetKind'];
+      fileName: string;
+      contentType: string;
+      /** Format: int64 */
+      sizeBytes: number;
+      /** @description Resume an earlier upload; returns fresh URLs for the missing parts only. */
+      uploadId?: string;
+    };
+    MultipartUpload: {
+      uploadId: string;
+      assetId: string;
+      /** @description Bytes per part (the last part may be smaller). */
+      partSize: number;
+      partCount: number;
+      /** @description Parts storage already has (on resume). */
+      completedParts: components['schemas']['CompletedPart'][];
+      /** @description Pre-signed PUT URLs for the parts still to send. */
+      parts: {
+        partNumber: number;
+        /** Format: uri */
+        url: string;
+      }[];
+      /** Format: date-time */
+      expiresAt: string;
+    };
+    CompletedPart: {
+      partNumber: number;
+      etag: string;
+    };
+    UploadComplete: {
+      parts: components['schemas']['CompletedPart'][];
+    };
     StoreSummary: {
       id: string;
       slug: components['schemas']['Slug'];
@@ -618,7 +1071,11 @@ export interface components {
       id: string;
       slug: components['schemas']['ProductSlug'];
       title: string;
-      type: components['schemas']['ProductType'];
+      /** @description One of GET /v1/product-types (e.g. A1). */
+      typeCode: string;
+      /** @example Ebooks and guides */
+      typeName: string;
+      contentMode: components['schemas']['ContentMode'];
       price: components['schemas']['Money'];
       /** @description Original price when on sale; null otherwise. */
       compareAtPrice: components['schemas']['Money'] | null;
@@ -630,8 +1087,16 @@ export interface components {
       };
       featured: boolean;
     };
-    /** @description A live product as public pages show it (PROPOSED, F3). */
+    /**
+     * @description A live product as public pages show it (PROPOSED, F3/F4). SECURITY: never contains the
+     *     LINK URL or any file URL; only the cover, preview pages and preview clip are public.
+     */
     Product: components['schemas']['ProductSummary'] & {
+      visibility: components['schemas']['ProductVisibility'];
+      category: components['schemas']['Category'] | null;
+      tags: components['schemas']['Tag'][];
+      preview: components['schemas']['ProductPreview'];
+      content: components['schemas']['ContentFacts'];
       /** @description Short plain-text description. */
       description: string | null;
       /** @description Cover first. Empty when the product has no images. */
@@ -1731,6 +2196,10 @@ export interface operations {
         limit?: number;
         /** @description Only products from this store */
         storeSlug?: components['schemas']['Slug'];
+        /** @description `me`: the signed-in seller's own products (needs a token). */
+        owner?: 'me';
+        /** @description With owner=me. Default live. */
+        state?: components['schemas']['ProductState'];
       };
       header?: never;
       path?: never;
@@ -1738,18 +2207,394 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description One page of products */
+      /** @description One page of products (OwnProductPage when owner=me) */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['ProductPage'];
+          'application/json':
+            components['schemas']['ProductPage'] | components['schemas']['OwnProductPage'];
         };
       };
       400: components['responses']['ValidationError'];
       404: components['responses']['NotFound'];
       500: components['responses']['InternalError'];
+    };
+  };
+  createProduct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "typeCode": "A1",
+         *       "title": "Ankara Pattern Guide"
+         *     }
+         */
+        'application/json': components['schemas']['ProductCreate'];
+      };
+    };
+    responses: {
+      /** @description The new draft */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnProduct'];
+        };
+      };
+      /** @description Unknown type, title too long, or a mode the type doesn't allow */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      403: components['responses']['NotSeller'];
+    };
+  };
+  getOwnProduct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The product */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnProduct'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  updateProduct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ProductUpdate'];
+      };
+    };
+    responses: {
+      /** @description The updated product */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnProduct'];
+        };
+      };
+      /** @description A field breaks a rule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  startProductUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "kind": "main",
+         *       "fileName": "ankara-guide.pdf",
+         *       "contentType": "application/pdf",
+         *       "sizeBytes": 14680064
+         *     }
+         */
+        'application/json': components['schemas']['UploadStart'];
+      };
+    };
+    responses: {
+      /** @description Where to send the parts */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MultipartUpload'];
+        };
+      };
+      /** @description File type or size not allowed for this product type */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  completeProductUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        uploadId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UploadComplete'];
+      };
+    };
+    responses: {
+      /** @description The asset (now scanning) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProductAsset'];
+        };
+      };
+      400: components['responses']['ValidationError'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  abortProductUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        uploadId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Cancelled */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      404: components['responses']['NotFound'];
+    };
+  };
+  publishProduct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PublishRequest'];
+      };
+    };
+    responses: {
+      /** @description The product, now live (or pending_review) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnProduct'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      404: components['responses']['NotFound'];
+      /** @description Not ready to publish */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  unpublishProduct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The product, now unpublished */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnProduct'];
+        };
+      };
+      404: components['responses']['NotFound'];
+    };
+  };
+  republishProduct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The product, live again */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnProduct'];
+        };
+      };
+      404: components['responses']['NotFound'];
+      /** @description Not ready (same codes as publish) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  listProductTypes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description All types (one page) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProductTypePage'];
+        };
+      };
+    };
+  };
+  listTags: {
+    parameters: {
+      query?: {
+        q?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Matching tags */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TagPage'];
+        };
+      };
+    };
+  };
+  previewFee: {
+    parameters: {
+      query: {
+        /** @example 150000 */
+        priceKobo: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The breakdown */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "price": {
+           *         "amountKobo": 150000,
+           *         "currency": "NGN"
+           *       },
+           *       "fee": {
+           *         "amountKobo": 8500,
+           *         "currency": "NGN"
+           *       },
+           *       "youReceive": {
+           *         "amountKobo": 141500,
+           *         "currency": "NGN"
+           *       },
+           *       "label": "5% + ₦10 per sale"
+           *     }
+           */
+          'application/json': components['schemas']['FeePreview'];
+        };
+      };
+      400: components['responses']['ValidationError'];
+      401: components['responses']['Unauthenticated'];
     };
   };
   getPublicProduct: {
@@ -1775,7 +2620,7 @@ export interface operations {
           'application/json': components['schemas']['Product'];
         };
       };
-      /** @description Unknown or unpublished product, or a private store */
+      /** @description Unknown or draft product, or a private store */
       404: {
         headers: {
           [name: string]: unknown;
@@ -1785,6 +2630,21 @@ export interface operations {
            * @example {
            *       "code": "NOT_FOUND",
            *       "message": "We couldn’t find that product."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description The product was unpublished (no longer available) */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "PRODUCT_UNPUBLISHED",
+           *       "message": "This product is no longer available."
            *     }
            */
           'application/json': components['schemas']['Error'];

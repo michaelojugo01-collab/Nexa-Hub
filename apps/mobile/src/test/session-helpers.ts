@@ -28,6 +28,8 @@ export async function resetAppState() {
     rateLimited: false,
     offline: false,
     uploadsFail: false,
+    networkDrops: false,
+    filesRejected: false,
   });
   useAuthStore.setState({
     status: 'signedOut',

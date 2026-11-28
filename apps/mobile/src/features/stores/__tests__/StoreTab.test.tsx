@@ -43,7 +43,7 @@ describe('Create/Store tab', () => {
     expect(await screen.findByTestId('store-dashboard')).toBeOnTheScreen();
     expect(screen.getByText('Adaeze Prints')).toBeOnTheScreen();
     expect(screen.getByTestId('dashboard-stats')).toHaveTextContent(
-      /12480\s*Followers\s*36\s*Products/,
+      /12480\s*Followers\s*6\s*Products/,
     );
     expect(await screen.findByTestId('payout-reminder')).toBeOnTheScreen();
   });

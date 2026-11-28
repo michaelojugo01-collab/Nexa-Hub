@@ -36,9 +36,12 @@ const api = createApiClient({
 export type Result<T> =
   { kind: 'found'; data: T } | { kind: 'redirect'; to: string } | { kind: 'not-found' };
 
-/** 404 and "private" both mean "no public page here". */
+/** 404, 410 (unpublished) and "private" all mean "no public page here". */
 function missing(error: unknown): { kind: 'not-found' } {
-  if (isApiError(error) && (error.status === 404 || error.code === 'STORE_PRIVATE')) {
+  if (
+    isApiError(error) &&
+    (error.status === 404 || error.status === 410 || error.code === 'STORE_PRIVATE')
+  ) {
     return { kind: 'not-found' };
   }
   throw error;
