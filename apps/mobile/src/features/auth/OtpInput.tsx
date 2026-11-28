@@ -7,6 +7,10 @@ export const OTP_LENGTH = 6;
 
 type OtpInputProps = {
   value: string;
+  /** Number of digits (default 6; the app-lock PIN uses 4) */
+  length?: number;
+  /** Show dots instead of digits (PIN entry) */
+  secure?: boolean;
   onChange: (code: string) => void;
   disabled?: boolean;
   error?: boolean;
@@ -20,6 +24,8 @@ type OtpInputProps = {
  */
 export function OtpInput({
   value,
+  length = OTP_LENGTH,
+  secure = false,
   onChange,
   disabled,
   error,
@@ -28,7 +34,7 @@ export function OtpInput({
 }: OtpInputProps) {
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const digits = value.split('');
-  const active = Math.min(value.length, OTP_LENGTH - 1);
+  const active = Math.min(value.length, length - 1);
 
   return (
     <Pressable
@@ -39,7 +45,7 @@ export function OtpInput({
       <View
         className="flex-row justify-between gap-2"
         importantForAccessibility="no-hide-descendants">
-        {Array.from({ length: OTP_LENGTH }, (_, i) => (
+        {Array.from({ length }, (_, i) => (
           <View
             key={i}
             className={cn(
@@ -53,7 +59,9 @@ export function OtpInput({
                     : 'border-border',
               disabled && 'bg-surface-muted opacity-60',
             )}>
-            <Text className="text-2xl font-semibold text-text">{digits[i] ?? ''}</Text>
+            <Text className="text-2xl font-semibold text-text">
+              {digits[i] ? (secure ? '•' : digits[i]) : ''}
+            </Text>
           </View>
         ))}
       </View>
@@ -61,16 +69,17 @@ export function OtpInput({
         ref={input}
         testID={testID}
         value={value}
-        onChangeText={(text) => onChange(text.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+        onChangeText={(text) => onChange(text.replace(/\D/g, '').slice(0, length))}
         editable={!disabled}
         autoFocus={autoFocus}
         keyboardType="number-pad"
-        textContentType="oneTimeCode"
-        autoComplete="sms-otp"
-        maxLength={OTP_LENGTH}
+        textContentType={secure ? 'none' : 'oneTimeCode'}
+        autoComplete={secure ? 'off' : 'sms-otp'}
+        secureTextEntry={secure}
+        maxLength={length}
         caretHidden
-        accessibilityLabel={`${OTP_LENGTH}-digit code`}
-        accessibilityHint={value ? `${value.length} of ${OTP_LENGTH} digits entered` : undefined}
+        accessibilityLabel={secure ? `${length}-digit PIN` : `${length}-digit code`}
+        accessibilityHint={value ? `${value.length} of ${length} digits entered` : undefined}
         accessibilityState={{ disabled }}
         className="absolute inset-0 text-transparent opacity-0"
       />

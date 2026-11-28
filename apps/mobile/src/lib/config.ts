@@ -18,6 +18,8 @@ export const config = {
     5,
     toNumber(process.env.EXPO_PUBLIC_MOCK_ACCESS_TOKEN_TTL_SEC, 900),
   ),
+  /** Lock the app when it returns from the background after this many seconds (spec: 5 min). */
+  appLockAfterSec: Math.max(0, toNumber(process.env.EXPO_PUBLIC_APP_LOCK_AFTER_SEC, 300)),
   mockScenario: (process.env.EXPO_PUBLIC_MOCK_SCENARIO === 'empty'
     ? 'empty'
     : 'default') satisfies MockScenario as MockScenario,

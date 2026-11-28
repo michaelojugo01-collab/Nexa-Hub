@@ -12,6 +12,9 @@ import { ToastHost } from '@/components';
 import { queryClient, wireQueryManagers } from '@/lib/api/query-client';
 import { restoreSession } from '@/lib/auth/session';
 import { useAuthStore } from '@/stores/auth-store';
+import { LockScreen } from '@/features/lock/LockScreen';
+import { useAppLock } from '@/features/lock/use-app-lock';
+import { useLockStore } from '@/stores/lock-store';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
 wireQueryManagers();
@@ -20,6 +23,8 @@ void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 export default function RootLayout() {
   const status = useAuthStore((s) => s.status);
   const onboarding = useAuthStore((s) => s.onboarding);
+  const locked = useLockStore((s) => s.locked);
+  useAppLock();
 
   useEffect(() => {
     void restoreSession();
@@ -60,6 +65,7 @@ export default function RootLayout() {
               />
             </Stack.Protected>
           </Stack>
+          {signedIn && locked ? <LockScreen /> : null}
           <ToastHost />
         </ThemeProvider>
       </SafeAreaProvider>

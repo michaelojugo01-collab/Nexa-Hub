@@ -12,7 +12,12 @@ const KEYS = {
   user: 'nexa.auth.user',
   deviceId: 'nexa.device.id',
   localAvatarUri: 'nexa.profile.localAvatarUri',
+  lockMode: 'nexa.lock.mode',
+  lockPin: 'nexa.lock.pin',
+  lockFailures: 'nexa.lock.failures',
 } as const;
+
+export type LockMode = 'off' | 'biometric' | 'pin';
 
 export type StoredSession = TokenPair & { user: Me | null };
 
@@ -79,6 +84,27 @@ export const secureStorage = {
     const id = `dev_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
     await keychain.set(KEYS.deviceId, id);
     return id;
+  },
+
+  /** App lock settings. The PIN is kept in the keychain/keystore, never in plain storage. */
+  async getLock(): Promise<{ mode: LockMode; failures: number }> {
+    const [mode, failures] = await Promise.all([get(KEYS.lockMode), get(KEYS.lockFailures)]);
+    return {
+      mode: mode === 'biometric' || mode === 'pin' ? mode : 'off',
+      failures: Number(failures ?? 0) || 0,
+    };
+  },
+  async setLock(mode: LockMode, pin?: string) {
+    await keychain.set(KEYS.lockMode, mode);
+    if (mode === 'pin' && pin) await keychain.set(KEYS.lockPin, pin);
+    if (mode !== 'pin') await keychain.remove(KEYS.lockPin).catch(() => undefined);
+    await keychain.set(KEYS.lockFailures, '0');
+  },
+  async checkPin(pin: string) {
+    return (await get(KEYS.lockPin)) === pin;
+  },
+  async setLockFailures(count: number) {
+    await keychain.set(KEYS.lockFailures, String(count));
   },
 
   /** Profile photo picked on this device (upload comes in a later module). */
