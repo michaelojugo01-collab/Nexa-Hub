@@ -2,6 +2,83 @@
 
 Newest first. Each entry: what was decided, why, and what would change it.
 
+## 2026-11-28 — F4 Digital product catalogue (front end)
+
+1. **One Product model with a content mode** (`STREAM_ONLY`, `DOWNLOAD_LIMITED`, `LINK`), not
+   13 product types. The 13 types (Ways To Earn A1–A12 and I4, `docs/NEXA_HUB_Ways_To_Earn.pdf`)
+   are data from **`GET /v1/product-types`** (proposed, approved): name, group, default
+   category, allowed modes (first = default), file rules, rights requirement, preview kind.
+   Screens never name a type (a test checks).
+
+   | Code | Type                               | Default category      | Modes                  | Rights | Files (max)                                   |
+   | ---- | ---------------------------------- | --------------------- | ---------------------- | ------ | --------------------------------------------- |
+   | A1   | Ebooks and guides                  | Books & writing       | DOWNLOAD_LIMITED       | –      | PDF (200 MB)                                  |
+   | A2   | Templates                          | Business & money      | DOWNLOAD_LIMITED, LINK | –      | PDF, DOCX, XLSX, PPTX, ZIP (200 MB)           |
+   | A3   | Design assets                      | Design & branding     | DOWNLOAD_LIMITED       | –      | ZIP, PNG, JPG, SVG, XMP, CUBE, TTF/OTF (1 GB) |
+   | A4   | Music and audio                    | Music & beats         | DOWNLOAD_LIMITED       | yes    | MP3, WAV, ZIP (1 GB)                          |
+   | A5   | Stock media                        | Photography & video   | DOWNLOAD_LIMITED       | yes    | JPG, PNG, MP4, MOV, ZIP (2 GB)                |
+   | A6   | Video lessons and masterclasses    | Exam prep & education | STREAM_ONLY            | yes    | MP4, MOV (4 GB)                               |
+   | A7   | Spreadsheets and trackers          | Business & money      | DOWNLOAD_LIMITED, LINK | –      | XLSX, CSV, ODS, PDF (100 MB)                  |
+   | A8   | Code and developer assets          | Tech & coding         | DOWNLOAD_LIMITED       | –      | ZIP (500 MB)                                  |
+   | A9   | Prompt packs and AI workflows      | Tech & coding         | DOWNLOAD_LIMITED, LINK | –      | PDF, TXT, JSON, ZIP (100 MB)                  |
+   | A10  | Study guides and original notes    | Exam prep & education | DOWNLOAD_LIMITED       | –      | PDF (200 MB)                                  |
+   | A11  | Printables and worksheets          | Books & writing       | DOWNLOAD_LIMITED       | –      | PDF, PNG, ZIP (200 MB)                        |
+   | A12  | Link-based products                | Business & money      | LINK                   | –      | –                                             |
+   | I4   | Notion, Airtable and Excel systems | Business & money      | LINK, DOWNLOAD_LIMITED | –      | XLSX, CSV (100 MB)                            |
+
+   **File size limits are PROPOSED** (decided here at your request). Covers: JPEG/PNG/WebP up to
+   10 MB, cropped 4:3 and shrunk to 1200×900 on the phone. Preview clips: video up to 200 MB
+   (≈1 minute), audio up to 50 MB (≈30 s). PDF only, no ePub (spec). Default download limit 5
+   (enforced in F5).
+
+2. **States:** `draft → live` (or `pending_review` when keyword screening flags it) `⇄
+unpublished`; never deleted. **Visibility** of a live product: `public` or `unlisted`
+   ("Draft" in the publish step means "keep as draft"). Unlisted: opens by link, never listed,
+   searched or in the sitemap, `noindex` on the web. Unpublished: gone from every public list;
+   the public read returns **410 `PRODUCT_UNPUBLISHED`** ("No longer available" in the app, 404
+   on the web); past buyers keep access (F5).
+3. **Proposed endpoints:** `POST /v1/products/{id}/uploads/{uploadId}/complete`,
+   `DELETE /v1/products/{id}/uploads/{uploadId}`, `POST /v1/products/{id}/unpublish`,
+   `POST /v1/products/{id}/republish`, `GET /v1/product-types`, `GET /v1/tags?q=`,
+   `GET /v1/fees/preview?priceKobo=`. Also on the spec's endpoints: `GET /v1/products?owner=me&
+state=` for the seller's list (state=live includes pending_review), `GET/PATCH
+/v1/products/{id}`; a resume is `POST .../uploads` again with `uploadId` (fresh URLs for the
+   missing parts only). New error codes besides the requested ones: `COVER_REQUIRED`,
+   `MODE_NOT_ALLOWED`, `PRODUCT_UNPUBLISHED`, `STORE_REQUIRED`.
+4. **Security:** public product responses carry only the cover, preview pages, preview clip and
+   facts (type, file kind, pages, length, size). Never the link or any file URL (contract
+   test over every fixture, list, home and sitemap).
+5. **Publish rules (server):** title, category, price ≥ ₦100, content ready (file asset
+   `ready`, or a valid https link), cover set, and the rights declaration for A4, A5, A6. The
+   server stores the declaration time; the app only sends the tick.
+6. **Fee preview:** the server computes 5% + ₦10 (`GET /v1/fees/preview`); the app shows
+   "You'll receive about ₦X per sale" and never calculates it.
+7. **Replacing the main file of a live product (decided, your choice):** everyone who bought
+   it gets the new file as an update; the old file stays available to them for 30 days
+   (`previousMainAssetId`). The content mode can't change once published. The app warns
+   before replacing.
+8. **Uploader:** one `Uploader` interface (start, pause, resume, cancel, progress, restore).
+   Today: S3-style multipart with 5 MB parts, ETags saved on the phone after every part,
+   automatic retries, resume from the last finished part (also after a restart or when the
+   phone is back online). **Open choice: S3 multipart or tus** for the real backend; screens
+   don't change either way. Files are copied into the app's documents folder so a resume
+   reads the same bytes. Warning before uploads over 20 MB on mobile data.
+9. **Autosave:** every change goes to a JSON file on the phone at once and to the API 1.5 s
+   after typing stops (only fields that are valid). A newer phone copy wins on open. Status:
+   "Saving…", "Saved", "Offline, saved on this phone". Starting a product needs a connection
+   once (the server draft gives it an id).
+10. **Fixtures cleaned up (approved):** services and physical items turned into digital
+    products; "past questions" packs renamed as original study guides; one "leaked
+    questions" listing kept as the `pending_review` example (Ways To Earn Part 4: academic
+    dishonesty). Prohibited category in the mock: `betting-tips` (never listed, refused).
+11. **Store product counts** now come from the live, public products (was a fixed number).
+12. **Libraries (approved):** `expo-document-picker`, `expo-video`, `expo-audio` (playback
+    only: microphone and background playback turned off in their config plugins). Preview
+    pages are images from the mock; real PDF rendering is F5.
+13. **Not built:** checkout (F6, Buy goes to a placeholder), the library and secure viewer
+    (F5), real scanning/transcoding, bundles/PWYW/free (A13–A15), A4 licence choice (basic or
+    exclusive), admin review queue (Dev settings can approve), update notifications (I4).
+
 ## 2026-11-28 — F3 Public web pages and deep links
 
 1. **Proposed endpoints** (`x-status: proposed` in `openapi.yaml`, contract v0.4):

@@ -20,7 +20,8 @@ and `packages/api-contract/openapi.yaml`. Never invent features or endpoints. De
 App libraries: TanStack Query, Zustand, react-hook-form + zod, NativeWind, FlashList, expo-image,
 expo-network, expo-linear-gradient, @expo/vector-icons, expo-dev-client, expo-secure-store,
 expo-local-authentication, expo-image-picker, @hookform/resolvers, expo-image-manipulator,
-expo-clipboard, expo-sharing, expo-file-system, react-native-svg, react-native-qrcode-svg. Local native module:
+expo-clipboard, expo-sharing, expo-file-system, react-native-svg, react-native-qrcode-svg,
+expo-document-picker, expo-video, expo-audio. Local native module:
 `apps/mobile/modules/sms-retriever` (Android). Web libraries: next, tailwindcss 3 (+ postcss,
 autoprefixer), vitest, @playwright/test. **No new libraries without asking first.**
 
@@ -61,6 +62,9 @@ Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
 - Mocks: fixtures and the fake API in `packages/mocks`, reused by tests. App:
   `EXPO_PUBLIC_USE_MOCKS=true`; web: `USE_MOCKS=true`. App-only mock bits (secure-store
   persistence, Dev settings switches) stay in `apps/mobile/src/mocks`.
+- Products: types are data (`GET /v1/product-types`); never name a type in screen code. One
+  Product model with a content mode. File uploads only through `features/products/upload`
+  (the `Uploader` interface). Public product responses never include links or file URLs.
 - Web: pages stay cacheable (no cookies/headers/searchParams on the server; read `?ref` and
   the platform in client islands). Client JS only for the banner, buttons, ref box and
   analytics. Images through `next/image`. Metadata and JSON-LD built in `src/lib/seo.ts`.

@@ -52,6 +52,13 @@ redirects to `adaezeprints`). About 1 in 6 photo uploads fail on purpose so you 
 (`EXPO_PUBLIC_MOCK_UPLOAD_FAILURE_RATE`; Dev settings can make every upload fail). Dev settings
 also turns on the Services tab flag.
 
+**Products (F4) with mocks:** sign in as the seller (`0803 123 4567`) → Store tab → Add
+product. Any file works for uploads; it is sent in 5 MB parts with progress, then "checked
+for viruses" and "processed" for a few seconds. About 1 in 20 parts drops and 1 in 10 files
+is rejected (`EXPO_PUBLIC_MOCK_NETWORK_DROP_RATE`, `EXPO_PUBLIC_MOCK_FILE_REJECT_RATE`); Dev
+settings can make every part drop or every file fail, and approve listings in review. Kill
+the app mid-upload and reopen it: the upload carries on from the last finished part.
+
 ### Testing store links (deep links)
 
 The app scheme is `nexahub`. With the app running on a simulator, emulator or USB device:
