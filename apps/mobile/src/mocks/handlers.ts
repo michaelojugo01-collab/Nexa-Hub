@@ -1,16 +1,26 @@
 import type { ApiErrorBody } from '@nexa/api-contract';
 
-import { discoverHome, discoverHomeEmpty, findStore, meBuyer, products } from './fixtures';
+import type { MockServerOptions } from './auth/server';
+import { MockAuthServer } from './auth/server';
+import { categories, discoverHome, discoverHomeEmpty, findStore, products } from './fixtures';
 
 export type MockScenario = 'default' | 'empty';
 
 export type MockResponse = { status: number; body: unknown };
 
-type Handler = (ctx: {
+export type MockFlags = { smsDown: boolean; rateLimited: boolean };
+
+type Ctx = {
   params: Record<string, string>;
   query: Map<string, string>;
   scenario: MockScenario;
-}) => MockResponse;
+  body: Record<string, unknown>;
+  authorization: string | undefined;
+  flags: MockFlags;
+  server: MockAuthServer;
+};
+
+type Handler = (ctx: Ctx) => MockResponse | Promise<MockResponse>;
 
 const ok = (body: unknown): MockResponse => ({ status: 200, body });
 const error = (status: number, body: ApiErrorBody): MockResponse => ({ status, body });
@@ -20,58 +30,85 @@ const encodeCursor = (offset: number) => `cur_${offset.toString(36)}`;
 const decodeCursor = (cursor: string) =>
   cursor.startsWith('cur_') ? parseInt(cursor.slice(4), 36) : NaN;
 
-const routes: { method: string; pattern: RegExp; keys: string[]; handler: Handler }[] = [
-  {
-    method: 'GET',
-    pattern: /^\/v1\/me$/,
-    keys: [],
-    handler: () => ok(meBuyer),
-  },
-  {
-    method: 'GET',
-    pattern: /^\/v1\/discover\/home$/,
-    keys: [],
-    handler: ({ scenario }) => ok(scenario === 'empty' ? discoverHomeEmpty : discoverHome),
-  },
-  {
-    method: 'GET',
-    pattern: /^\/v1\/stores\/([^/]+)$/,
-    keys: ['slug'],
-    handler: ({ params }) => {
-      const store = findStore(params.slug ?? '');
-      return store
-        ? ok(store)
-        : error(404, { code: 'NOT_FOUND', message: 'We couldn’t find that store.' });
-    },
-  },
-  {
-    method: 'GET',
-    pattern: /^\/v1\/products$/,
-    keys: [],
-    handler: ({ query, scenario }) => {
-      const limit = Number(query.get('limit') ?? 20);
-      if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
-        return error(400, { code: 'VALIDATION_ERROR', message: 'limit must be between 1 and 50.' });
-      }
-      const storeSlug = query.get('storeSlug');
-      if (storeSlug && !findStore(storeSlug)) {
-        return error(404, { code: 'NOT_FOUND', message: 'We couldn’t find that store.' });
-      }
-      const cursor = query.get('cursor');
-      const offset = cursor ? decodeCursor(cursor) : 0;
-      if (Number.isNaN(offset)) {
-        return error(400, { code: 'VALIDATION_ERROR', message: 'Invalid cursor.' });
-      }
+function paginate<T>(all: T[], query: Map<string, string>, defaultLimit: number): MockResponse {
+  const limit = Number(query.get('limit') ?? defaultLimit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    return error(400, { code: 'VALIDATION_ERROR', message: 'limit must be between 1 and 50.' });
+  }
+  const cursor = query.get('cursor');
+  const offset = cursor ? decodeCursor(cursor) : 0;
+  if (Number.isNaN(offset)) {
+    return error(400, { code: 'VALIDATION_ERROR', message: 'Invalid cursor.' });
+  }
+  const data = all.slice(offset, offset + limit);
+  const next = offset + limit;
+  return ok({ data, nextCursor: next < all.length ? encodeCursor(next) : null });
+}
 
-      const all =
-        scenario === 'empty'
-          ? []
-          : products.filter((p) => !storeSlug || p.store.slug === storeSlug);
-      const data = all.slice(offset, offset + limit);
-      const next = offset + limit;
-      return ok({ data, nextCursor: next < all.length ? encodeCursor(next) : null });
-    },
-  },
+const route = (method: string, path: string, handler: Handler) => {
+  const keys: string[] = [];
+  const pattern = new RegExp(
+    `^${path.replace(/\{(\w+)\}/g, (_, key: string) => {
+      keys.push(key);
+      return '([^/]+)';
+    })}$`,
+  );
+  return { method, pattern, keys, handler };
+};
+
+const routes = [
+  // Auth
+  route('POST', '/v1/auth/otp/request', ({ server, body, flags }) =>
+    server.requestOtp(body, flags),
+  ),
+  route('POST', '/v1/auth/otp/verify', ({ server, body, flags }) => server.verifyOtp(body, flags)),
+  route('POST', '/v1/auth/refresh', ({ server, body }) => server.refresh(body)),
+  route('POST', '/v1/auth/logout', ({ server, body }) => server.logout(body)),
+
+  // Me
+  route('GET', '/v1/me', ({ server, authorization }) => server.getMe(authorization)),
+  route('PATCH', '/v1/me', ({ server, authorization, body }) =>
+    server.updateMe(authorization, body),
+  ),
+  route('DELETE', '/v1/me', ({ server, authorization, body }) =>
+    server.deleteMe(authorization, body),
+  ),
+  route('POST', '/v1/me/seller', ({ server, authorization }) => server.becomeSeller(authorization)),
+  route('POST', '/v1/me/email/verification', ({ server, authorization }) =>
+    server.sendEmailVerification(authorization),
+  ),
+  route('GET', '/v1/me/data-export', ({ server, authorization }) =>
+    server.getDataExport(authorization),
+  ),
+  route('POST', '/v1/me/data-export', ({ server, authorization }) =>
+    server.requestDataExport(authorization),
+  ),
+  route('GET', '/v1/usernames/availability', ({ server, authorization, query }) =>
+    server.checkUsername(authorization, query.get('username') ?? ''),
+  ),
+
+  // Discovery
+  route('GET', '/v1/discover/home', ({ scenario }) =>
+    ok(scenario === 'empty' ? discoverHomeEmpty : discoverHome),
+  ),
+  route('GET', '/v1/discover/categories', ({ query, scenario }) =>
+    paginate(scenario === 'empty' ? [] : categories, query, 50),
+  ),
+  route('GET', '/v1/stores/{slug}', ({ params }) => {
+    const store = findStore(params.slug ?? '');
+    return store
+      ? ok(store)
+      : error(404, { code: 'NOT_FOUND', message: 'We couldn’t find that store.' });
+  }),
+  route('GET', '/v1/products', ({ query, scenario }) => {
+    const storeSlug = query.get('storeSlug');
+    if (storeSlug && !findStore(storeSlug)) {
+      return error(404, { code: 'NOT_FOUND', message: 'We couldn’t find that store.' });
+    }
+    const all =
+      scenario === 'empty' ? [] : products.filter((p) => !storeSlug || p.store.slug === storeSlug);
+    return paginate(all, query, 20);
+  }),
 ];
 
 /**
@@ -90,21 +127,39 @@ function parseUrl(url: string) {
   return { pathname, query };
 }
 
+export type MockRequest = {
+  method: string;
+  url: string;
+  body?: Record<string, unknown>;
+  authorization?: string;
+};
+
 /** Finds the handler for a request and runs it. Unknown routes return 404 like the real API. */
-export function handleMockRequest(
-  method: string,
-  url: string,
-  scenario: MockScenario = 'default',
-): MockResponse {
-  const { pathname, query } = parseUrl(url);
-  for (const route of routes) {
-    if (route.method !== method) continue;
-    const match = route.pattern.exec(pathname);
+export async function handleMockRequest(
+  request: MockRequest,
+  options: { server: MockAuthServer; scenario?: MockScenario; flags?: MockFlags },
+): Promise<MockResponse> {
+  const { pathname, query } = parseUrl(request.url);
+  for (const r of routes) {
+    if (r.method !== request.method) continue;
+    const match = r.pattern.exec(pathname);
     if (!match) continue;
     const params = Object.fromEntries(
-      route.keys.map((key, i) => [key, decodeURIComponent(match[i + 1] ?? '')]),
+      r.keys.map((key, i) => [key, decodeURIComponent(match[i + 1] ?? '')]),
     );
-    return route.handler({ params, query, scenario });
+    return r.handler({
+      params,
+      query,
+      scenario: options.scenario ?? 'default',
+      body: request.body ?? {},
+      authorization: request.authorization,
+      flags: options.flags ?? { smsDown: false, rateLimited: false },
+      server: options.server,
+    });
   }
-  return error(404, { code: 'NOT_FOUND', message: `No mock for ${method} ${pathname}` });
+  return error(404, { code: 'NOT_FOUND', message: `No mock for ${request.method} ${pathname}` });
+}
+
+export function createMockServer(options: MockServerOptions) {
+  return new MockAuthServer(options);
 }

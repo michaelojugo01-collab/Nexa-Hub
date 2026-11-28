@@ -13,6 +13,11 @@ export const config = {
   useMocks: process.env.EXPO_PUBLIC_USE_MOCKS === 'true',
   mockDelayMs: toNumber(process.env.EXPO_PUBLIC_MOCK_DELAY_MS, 800),
   mockFailureRate: Math.min(1, Math.max(0, toNumber(process.env.EXPO_PUBLIC_MOCK_FAILURE_RATE, 0))),
+  /** Access-token lifetime in mock mode. Set to 30 to test silent refresh quickly. */
+  mockAccessTokenTtlSec: Math.max(
+    5,
+    toNumber(process.env.EXPO_PUBLIC_MOCK_ACCESS_TOKEN_TTL_SEC, 900),
+  ),
   mockScenario: (process.env.EXPO_PUBLIC_MOCK_SCENARIO === 'empty'
     ? 'empty'
     : 'default') satisfies MockScenario as MockScenario,

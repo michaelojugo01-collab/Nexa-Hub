@@ -38,6 +38,26 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow Nexa Hub to use Face ID to unlock the app."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Nexa Hub to use Face ID to unlock the app."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Nexa Hub to use a photo from your library as your profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

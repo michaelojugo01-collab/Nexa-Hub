@@ -1,6 +1,8 @@
 import type { FetchLike } from '@nexa/api-contract';
 
-import { handleMockRequest, type MockScenario } from './handlers';
+import { MockAuthServer } from './auth/server';
+import { memoryPersistence } from './auth/persistence';
+import { handleMockRequest, type MockFlags, type MockScenario } from './handlers';
 
 export type MockFetchOptions = {
   /** Artificial latency per request, so loading states are visible. */
@@ -8,6 +10,10 @@ export type MockFetchOptions = {
   /** 0–1. Share of requests that fail with a 500, so error states are visible. */
   failureRate?: number;
   scenario?: MockScenario;
+  /** The fake backend. Defaults to a fresh in-memory one (handy for tests). */
+  server?: MockAuthServer;
+  /** Read on every request so the Dev settings toggles apply immediately. */
+  getFlags?: () => MockFlags & { offline: boolean };
   /** Injected for deterministic tests. */
   random?: () => number;
 };
@@ -23,20 +29,31 @@ const wait = (ms: number, signal?: AbortSignal | null) =>
   });
 
 const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
+  new Response(status === 204 || body === null ? null : JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
 
-/** A fetch replacement that answers from fixtures. Plugged into the API client in mock mode. */
+function header(init: RequestInit, name: string) {
+  const headers = init.headers as Record<string, string> | undefined;
+  return headers?.[name];
+}
+
+/** A fetch replacement that answers from fixtures and the mock auth server. */
 export function createMockFetch({
   delayMs = 0,
   failureRate = 0,
   scenario = 'default',
+  server = new MockAuthServer({ persistence: memoryPersistence(), accessTokenTtlSec: 900 }),
+  getFlags = () => ({ smsDown: false, rateLimited: false, offline: false }),
   random = Math.random,
 }: MockFetchOptions = {}): FetchLike {
   return async (url, init) => {
     await wait(delayMs, init.signal);
+    const flags = getFlags();
+
+    // Like a real fetch with no network: reject instead of responding.
+    if (flags.offline) throw new TypeError('Network request failed');
 
     if (random() < failureRate) {
       return json(500, {
@@ -45,7 +62,14 @@ export function createMockFetch({
       });
     }
 
-    const { status, body } = handleMockRequest(init.method ?? 'GET', url, scenario);
-    return json(status, body);
+    const body =
+      typeof init.body === 'string'
+        ? (JSON.parse(init.body) as Record<string, unknown>)
+        : undefined;
+    const { status, body: responseBody } = await handleMockRequest(
+      { method: init.method ?? 'GET', url, body, authorization: header(init, 'Authorization') },
+      { server, scenario, flags },
+    );
+    return json(status, responseBody);
   };
 }
