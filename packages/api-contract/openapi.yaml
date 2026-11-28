@@ -1,9 +1,11 @@
 openapi: 3.1.0
 info:
   title: Nexa Hub API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    Contract v0 — only the endpoints the F0 front end needs.
+    Contract v0.2 — endpoints for F0 (discovery) and F1 (accounts and authentication).
+    Operations marked `x-status: proposed` are not in the spec's endpoint list; see
+    docs/decisions.md.
 
     Conventions (apply to every endpoint added later):
     - Money is an integer number of kobo in a `Money` object. Currency is always NGN.
@@ -23,12 +25,195 @@ security:
   - bearerAuth: []
 
 tags:
+  - name: Auth
   - name: Me
   - name: Discovery
   - name: Stores
   - name: Products
 
 paths:
+  /v1/auth/otp/request:
+    post:
+      tags: [Auth]
+      operationId: requestOtp
+      summary: Send a one-time sign-in code
+      description: |
+        Sends a 6-digit code by SMS or WhatsApp (phone) or by email. Works for both sign-up and
+        sign-in: the server decides whether the account exists at verify time.
+        Codes expire after 5 minutes. A new code for the same destination can be requested once
+        `resendAvailableAt` has passed (60 seconds). Requesting a new code invalidates the old one.
+        Rate limited per phone, device and IP.
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequest'
+            examples:
+              sms:
+                value: { phone: '+2348031234567', channel: sms }
+              email:
+                value: { email: 'chidi@example.com', channel: email }
+      responses:
+        '200':
+          description: Code sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpChallenge'
+              examples:
+                sms:
+                  $ref: '#/components/examples/OtpChallengeSms'
+        '400':
+          description: Invalid phone or email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                phoneInvalid:
+                  value:
+                    code: PHONE_INVALID
+                    message: Enter a valid Nigerian mobile number.
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: The chosen channel is down. Offer another channel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                smsDown:
+                  value:
+                    code: SMS_UNAVAILABLE
+                    message: We can’t send SMS right now. Get your code on WhatsApp or by email instead.
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/auth/otp/verify:
+    post:
+      tags: [Auth]
+      operationId: verifyOtp
+      summary: Verify a code and start a session
+      description: |
+        At most 5 wrong attempts per challenge; the 6th attempt is refused with OTP_LOCKED and the
+        user must request a new code. On success returns a 15-minute access token and a rotating
+        refresh token bound to `deviceId`. `isNewUser` is true when this created the account.
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+            example:
+              challengeId: otp_01J0ABCXYZ
+              code: '123456'
+              deviceId: dev_7f3a9c2e1b
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+              examples:
+                newUser:
+                  $ref: '#/components/examples/AuthSessionNewUser'
+        '400':
+          description: Wrong, expired or locked code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid:
+                  value:
+                    code: OTP_INVALID
+                    message: That code is not right. 3 attempts left.
+                expired:
+                  value:
+                    code: OTP_EXPIRED
+                    message: This code has expired. Request a new one.
+                locked:
+                  value:
+                    code: OTP_LOCKED
+                    message: Too many wrong attempts. Request a new code to try again.
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      summary: Exchange a refresh token for a new token pair
+      description: |
+        Refresh tokens rotate: each one works once. Using an already-used refresh token is treated
+        as theft and revokes every session for that user.
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refreshToken: rt_9d8c7b6a5f4e
+              deviceId: dev_7f3a9c2e1b
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+              example:
+                accessToken: at_1a2b3c4d5e
+                accessTokenExpiresAt: '2026-11-28T10:15:00Z'
+                refreshToken: rt_0f1e2d3c4b5a
+        '401':
+          description: Refresh token unknown, used, expired or revoked. Sign in again.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: REFRESH_TOKEN_INVALID
+                message: Your session has ended. Please sign in again.
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: End this device's session
+      description: Revokes the refresh token. Succeeds even if the token is already invalid.
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            example:
+              refreshToken: rt_9d8c7b6a5f4e
+      responses:
+        '204':
+          description: Signed out
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /v1/me:
     get:
       tags: [Me]
@@ -46,6 +231,271 @@ paths:
                   $ref: '#/components/examples/MeSeller'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [Me]
+      operationId: updateMe
+      summary: Update the signed-in user's profile
+      description: |
+        Send only the fields to change. Changing `email` sets `emailVerified` to false and sends a
+        verification link. `interests` holds up to 3 category slugs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeUpdate'
+            example:
+              displayName: Chidi Nwosu
+              username: chidi_n
+      responses:
+        '200':
+          description: The updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                usernameInvalid:
+                  value:
+                    code: USERNAME_INVALID
+                    message: Usernames are 3–20 characters, start with a letter, and use only a–z, 0–9 and _.
+                tooManyInterests:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Choose up to 3 interests.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          description: Username or email already in use, or the username is reserved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                usernameTaken:
+                  value:
+                    code: USERNAME_TAKEN
+                    message: That username is taken.
+                usernameReserved:
+                  value:
+                    code: USERNAME_RESERVED
+                    message: That username isn’t available.
+                emailTaken:
+                  value:
+                    code: EMAIL_TAKEN
+                    message: That email is already linked to another account.
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Me]
+      operationId: deleteMe
+      summary: Delete the signed-in user's account (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — not in the spec's endpoint list (see docs/decisions.md).
+        Deactivates the account and signs out every device immediately. Permanent deletion
+        happens 30 days later; signing in again before then cancels it. Records the law requires
+        us to keep (orders, ledger) are retained.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+            example:
+              confirmation: DELETE
+      responses:
+        '202':
+          description: Deactivated; deletion scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletion'
+              example:
+                deactivatedAt: '2026-11-28T10:00:00Z'
+                deletesAt: '2026-12-28T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/me/seller:
+    post:
+      tags: [Me]
+      operationId: becomeSeller
+      summary: Upgrade the signed-in buyer to a seller
+      description: |
+        One tap, no approval, no re-login. Idempotent: calling it again returns the same user.
+        The current access token stays valid; roles are always read from the returned user.
+      responses:
+        '200':
+          description: The updated user, now with the seller role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              examples:
+                seller:
+                  $ref: '#/components/examples/MeNewSeller'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/me/email/verification:
+    post:
+      tags: [Me]
+      operationId: sendEmailVerification
+      summary: Send (or re-send) the email verification link (proposed)
+      x-status: proposed
+      description: PROPOSED — the spec mentions an email verification link but lists no endpoint.
+      responses:
+        '202':
+          description: Link sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailVerificationSent'
+              example:
+                sentTo: c***@example.com
+        '400':
+          description: No email on the account, or it is already verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: VALIDATION_ERROR
+                message: Add an email address first.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/me/data-export:
+    get:
+      tags: [Me]
+      operationId: getDataExport
+      summary: Status of the user's data export (proposed)
+      x-status: proposed
+      description: PROPOSED — the spec requires data export (F1, F13) but lists no endpoint.
+      responses:
+        '200':
+          description: Current export status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataExport'
+              example:
+                status: requested
+                requestedAt: '2026-11-28T10:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Me]
+      operationId: requestDataExport
+      summary: Request a copy of the user's data (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED. Queues an export; the user is emailed a download link when it is ready.
+        Idempotent while a request is pending.
+      responses:
+        '202':
+          description: Export requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataExport'
+              example:
+                status: requested
+                requestedAt: '2026-11-28T10:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/usernames/availability:
+    get:
+      tags: [Me]
+      operationId: checkUsername
+      summary: Live username availability check (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec requires a live availability check but lists no endpoint.
+        Advisory only: PATCH /v1/me re-checks and can still return USERNAME_TAKEN.
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+          example: chidi_n
+      responses:
+        '200':
+          description: Availability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsernameAvailability'
+              examples:
+                available:
+                  value: { username: chidi_n, available: true, reason: null }
+                taken:
+                  value: { username: adaeze, available: false, reason: taken }
+                reserved:
+                  value: { username: admin, available: false, reason: reserved }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/discover/categories:
+    get:
+      tags: [Discovery]
+      operationId: listCategories
+      summary: Product categories (also used as interest tags)
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+      responses:
+        '200':
+          description: One page of categories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryPage'
+              example:
+                data:
+                  - { id: cat_fashion, slug: fashion, name: Fashion & textiles }
+                  - { id: cat_education, slug: education, name: Exam prep & education }
+                nextCursor: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -304,29 +754,274 @@ components:
 
     Me:
       type: object
-      required: [id, username, displayName, avatarUrl, roles, store, createdAt]
+      required:
+        [
+          id,
+          username,
+          displayName,
+          avatarUrl,
+          bio,
+          phone,
+          email,
+          emailVerified,
+          interests,
+          roles,
+          store,
+          createdAt,
+        ]
       properties:
         id:
           type: string
         username:
-          type: string
+          description: Null until the user picks one during onboarding.
+          oneOf:
+            - $ref: '#/components/schemas/Username'
+            - type: 'null'
         displayName:
-          type: string
+          type: [string, 'null']
+          maxLength: 50
         avatarUrl:
           type: [string, 'null']
           format: uri
+        bio:
+          type: [string, 'null']
+          maxLength: 160
+        phone:
+          description: E.164, always +234 for Nigeria. Null for email-only accounts.
+          oneOf:
+            - $ref: '#/components/schemas/PhoneE164'
+            - type: 'null'
+        email:
+          type: [string, 'null']
+          format: email
+        emailVerified:
+          type: boolean
+        interests:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+          description: Category slugs (see GET /v1/discover/categories).
         roles:
           type: array
           items:
             $ref: '#/components/schemas/Role'
         store:
-          description: The user's store if they are a seller.
+          description: The user's store if they are a seller and have created one (F2).
           oneOf:
             - $ref: '#/components/schemas/StoreSummary'
             - type: 'null'
         createdAt:
           type: string
           format: date-time
+
+    Username:
+      type: string
+      description: 3–20 characters, starts with a letter, lowercase a–z, 0–9 and underscore.
+      pattern: '^[a-z][a-z0-9_]{2,19}$'
+      example: chidi_n
+
+    PhoneE164:
+      type: string
+      description: Nigerian mobile number in E.164 format.
+      pattern: '^\+234[789][01]\d{8}$'
+      example: '+2348031234567'
+
+    MeUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        username:
+          $ref: '#/components/schemas/Username'
+        bio:
+          type: [string, 'null']
+          maxLength: 160
+        email:
+          type: string
+          format: email
+        interests:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+
+    OtpChannel:
+      type: string
+      enum: [sms, whatsapp, email]
+
+    OtpRequest:
+      oneOf:
+        - $ref: '#/components/schemas/OtpRequestPhone'
+        - $ref: '#/components/schemas/OtpRequestEmail'
+
+    OtpRequestPhone:
+      type: object
+      required: [phone, channel]
+      properties:
+        phone:
+          $ref: '#/components/schemas/PhoneE164'
+        channel:
+          type: string
+          enum: [sms, whatsapp]
+
+    OtpRequestEmail:
+      type: object
+      required: [email, channel]
+      properties:
+        email:
+          type: string
+          format: email
+        channel:
+          type: string
+          enum: [email]
+
+    OtpChallenge:
+      type: object
+      required: [challengeId, channel, sentTo, expiresAt, resendAvailableAt]
+      properties:
+        challengeId:
+          type: string
+        channel:
+          $ref: '#/components/schemas/OtpChannel'
+        sentTo:
+          type: string
+          description: Masked destination for display, e.g. "+234 803 *** 4567".
+        expiresAt:
+          type: string
+          format: date-time
+        resendAvailableAt:
+          type: string
+          format: date-time
+
+    OtpVerifyRequest:
+      type: object
+      required: [challengeId, code, deviceId]
+      properties:
+        challengeId:
+          type: string
+        code:
+          type: string
+          pattern: '^\d{6}$'
+        deviceId:
+          type: string
+          description: Random ID generated once per install and kept in secure storage.
+
+    TokenPair:
+      type: object
+      required: [accessToken, accessTokenExpiresAt, refreshToken]
+      properties:
+        accessToken:
+          type: string
+          description: Valid for 15 minutes.
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+          description: Single use; rotates on every refresh.
+
+    AuthSession:
+      allOf:
+        - $ref: '#/components/schemas/TokenPair'
+        - type: object
+          required: [user, isNewUser]
+          properties:
+            user:
+              $ref: '#/components/schemas/Me'
+            isNewUser:
+              type: boolean
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken, deviceId]
+      properties:
+        refreshToken:
+          type: string
+        deviceId:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    UsernameAvailability:
+      type: object
+      required: [username, available, reason]
+      properties:
+        username:
+          type: string
+        available:
+          type: boolean
+        reason:
+          type: [string, 'null']
+          enum: [taken, reserved, invalid, null]
+
+    EmailVerificationSent:
+      type: object
+      required: [sentTo]
+      properties:
+        sentTo:
+          type: string
+
+    DeleteAccountRequest:
+      type: object
+      required: [confirmation]
+      properties:
+        confirmation:
+          type: string
+          const: DELETE
+
+    AccountDeletion:
+      type: object
+      required: [deactivatedAt, deletesAt]
+      properties:
+        deactivatedAt:
+          type: string
+          format: date-time
+        deletesAt:
+          type: string
+          format: date-time
+
+    DataExport:
+      type: object
+      required: [status, requestedAt]
+      properties:
+        status:
+          type: string
+          enum: [none, requested, ready]
+        requestedAt:
+          type: [string, 'null']
+          format: date-time
+
+    Category:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+
+    CategoryPage:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        nextCursor:
+          type: [string, 'null']
 
   responses:
     ValidationError:
@@ -339,14 +1034,22 @@ components:
             code: VALIDATION_ERROR
             message: limit must be between 1 and 50.
     Unauthenticated:
-      description: Missing or expired access token
+      description: |
+        Missing, invalid or expired access token. On ACCESS_TOKEN_EXPIRED the client refreshes
+        once (POST /v1/auth/refresh) and retries; on anything else it signs the user out.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example:
-            code: UNAUTHENTICATED
-            message: Please sign in again.
+          examples:
+            expired:
+              value:
+                code: ACCESS_TOKEN_EXPIRED
+                message: Your session needs refreshing.
+            missing:
+              value:
+                code: UNAUTHENTICATED
+                message: Please sign in again.
     NotFound:
       description: Not found
       content:
@@ -357,14 +1060,19 @@ components:
             code: NOT_FOUND
             message: We couldn’t find that store.
     RateLimited:
-      description: Too many requests
+      description: Too many requests. Retry-After says how many seconds to wait.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the next attempt is allowed
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             code: RATE_LIMITED
-            message: Too many requests. Please wait a moment.
+            message: Too many attempts. Try again in 60 seconds.
     InternalError:
       description: Unexpected server error
       content:
@@ -382,6 +1090,11 @@ components:
         username: adaeze
         displayName: Adaeze Okafor
         avatarUrl: null
+        bio: Textile designer in Yaba.
+        phone: '+2348031234567'
+        email: adaeze@example.com
+        emailVerified: true
+        interests: [fashion, art]
         roles: [buyer, seller]
         store:
           id: str_01HZX3M1A7
@@ -392,6 +1105,46 @@ components:
           verified: true
           followerCount: 12480
         createdAt: '2026-10-02T09:15:00Z'
+    MeNewSeller:
+      value:
+        id: usr_01J0NEW
+        username: chidi_n
+        displayName: Chidi Nwosu
+        avatarUrl: null
+        bio: null
+        phone: '+2348091112222'
+        email: null
+        emailVerified: false
+        interests: [education]
+        roles: [buyer, seller]
+        store: null
+        createdAt: '2026-11-28T09:58:00Z'
+    OtpChallengeSms:
+      value:
+        challengeId: otp_01J0ABCXYZ
+        channel: sms
+        sentTo: '+234 803 *** 4567'
+        expiresAt: '2026-11-28T10:05:00Z'
+        resendAvailableAt: '2026-11-28T10:01:00Z'
+    AuthSessionNewUser:
+      value:
+        accessToken: at_1a2b3c4d5e
+        accessTokenExpiresAt: '2026-11-28T10:15:00Z'
+        refreshToken: rt_9d8c7b6a5f4e
+        isNewUser: true
+        user:
+          id: usr_01J0NEW
+          username: null
+          displayName: null
+          avatarUrl: null
+          bio: null
+          phone: '+2348091112222'
+          email: null
+          emailVerified: false
+          interests: []
+          roles: [buyer]
+          store: null
+          createdAt: '2026-11-28T09:58:00Z'
     StoreAdaeze:
       value:
         id: str_01HZX3M1A7

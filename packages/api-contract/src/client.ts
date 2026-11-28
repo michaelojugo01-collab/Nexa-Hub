@@ -4,13 +4,28 @@ export type Schemas = components['schemas'];
 export type ApiErrorBody = Schemas['Error'];
 export type Money = Schemas['Money'];
 export type Me = Schemas['Me'];
+export type MeUpdate = Schemas['MeUpdate'];
+export type Role = Schemas['Role'];
 export type StoreSummary = Schemas['StoreSummary'];
 export type Store = Schemas['Store'];
 export type ProductSummary = Schemas['ProductSummary'];
 export type ProductType = Schemas['ProductType'];
 export type ProductPage = Schemas['ProductPage'];
 export type DiscoverHome = Schemas['DiscoverHome'];
+export type Category = Schemas['Category'];
+export type CategoryPage = Schemas['CategoryPage'];
+export type OtpChannel = Schemas['OtpChannel'];
+export type OtpRequest = Schemas['OtpRequest'];
+export type OtpChallenge = Schemas['OtpChallenge'];
+export type OtpVerifyRequest = Schemas['OtpVerifyRequest'];
+export type TokenPair = Schemas['TokenPair'];
+export type AuthSession = Schemas['AuthSession'];
+export type UsernameAvailability = Schemas['UsernameAvailability'];
+export type EmailVerificationSent = Schemas['EmailVerificationSent'];
+export type AccountDeletion = Schemas['AccountDeletion'];
+export type DataExport = Schemas['DataExport'];
 export type ListProductsQuery = NonNullable<operations['listProducts']['parameters']['query']>;
+export type ListCategoriesQuery = NonNullable<operations['listCategories']['parameters']['query']>;
 
 /** Error codes the client itself produces (the server adds its own, e.g. NOT_FOUND). */
 export const ClientErrorCode = {
@@ -37,6 +52,11 @@ export class ApiError extends Error {
   get isRetryable() {
     return this.status === 0 || this.status === 429 || this.status >= 500;
   }
+
+  /** True when there was no HTTP response at all (offline, timeout). */
+  get isNetworkError() {
+    return this.status === 0;
+  }
 }
 
 export function isApiError(error: unknown): error is ApiError {
@@ -45,17 +65,42 @@ export function isApiError(error: unknown): error is ApiError {
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
+/**
+ * Session hooks. The client never stores tokens itself; the app owns storage.
+ * On a 401 the client calls `refresh` once (concurrent 401s share one refresh),
+ * then retries the original request once with the new token.
+ */
+export type AuthHandlers = {
+  /** The current access token, or null when signed out. */
+  getAccessToken: () => string | null | Promise<string | null>;
+  /**
+   * Get a new access token. Return it on success; return null when the session is over
+   * (the client then calls `onSessionEnded`). Throw an ApiError with status 0 for network
+   * problems: the session is kept and the original error is surfaced.
+   */
+  refresh: () => Promise<string | null>;
+  /** Called once when a refresh is refused. The app signs the user out. */
+  onSessionEnded: () => void;
+};
+
 export type ApiClientOptions = {
   /** e.g. https://api.nexahub.ng — no trailing slash */
   baseUrl: string;
   /** Injected so tests and mock mode can answer requests without a network. */
   fetch?: FetchLike;
-  /** Returns the current access token, or null when signed out. */
-  getAccessToken?: () => string | null | Promise<string | null>;
+  auth?: AuthHandlers;
   timeoutMs?: number;
 };
 
 type Query = Record<string, string | number | boolean | undefined>;
+type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+
+type RequestOptions = {
+  query?: Query;
+  body?: unknown;
+  /** Public endpoints that must not trigger a refresh (auth endpoints themselves). */
+  skipAuth?: boolean;
+};
 
 function buildUrl(baseUrl: string, path: string, query?: Query) {
   const params = Object.entries(query ?? {})
@@ -74,24 +119,39 @@ function isErrorBody(value: unknown): value is ApiErrorBody {
   );
 }
 
+const invalidResponse = {
+  code: ClientErrorCode.INVALID_RESPONSE,
+  message: 'Something went wrong.',
+};
+
 /** Thin typed client over the generated OpenAPI types. One method per operation. */
 export function createApiClient(options: ApiClientOptions) {
-  const { baseUrl, getAccessToken, timeoutMs = 15_000 } = options;
+  const { baseUrl, auth, timeoutMs = 15_000 } = options;
   const doFetch: FetchLike = options.fetch ?? ((url, init) => fetch(url, init));
 
-  async function get<T>(path: string, query?: Query): Promise<T> {
-    const token = (await getAccessToken?.()) ?? null;
+  let refreshing: Promise<string | null> | null = null;
+
+  /** One refresh at a time: concurrent 401s wait for the same promise. */
+  function refreshOnce() {
+    if (!auth) return Promise.resolve(null);
+    refreshing ??= auth.refresh().finally(() => {
+      refreshing = null;
+    });
+    return refreshing;
+  }
+
+  async function send(method: Method, path: string, opts: RequestOptions, token: string | null) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+    if (token) headers.Authorization = `Bearer ${token}`;
 
-    let response: Response;
     try {
-      response = await doFetch(buildUrl(baseUrl, path, query), {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+      return await doFetch(buildUrl(baseUrl, path, opts.query), {
+        method,
+        headers,
+        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
         signal: controller.signal,
       });
     } catch {
@@ -107,31 +167,67 @@ export function createApiClient(options: ApiClientOptions) {
     } finally {
       clearTimeout(timer);
     }
+  }
 
+  async function parse<T>(response: Response): Promise<T> {
+    if (response.status === 204) return undefined as T;
     const body: unknown = await response.json().catch(() => undefined);
-
     if (!response.ok) {
-      throw new ApiError(
-        response.status,
-        isErrorBody(body)
-          ? body
-          : { code: ClientErrorCode.INVALID_RESPONSE, message: 'Something went wrong.' },
-      );
+      throw new ApiError(response.status, isErrorBody(body) ? body : invalidResponse);
     }
-    if (body === undefined) {
-      throw new ApiError(response.status, {
-        code: ClientErrorCode.INVALID_RESPONSE,
-        message: 'Something went wrong.',
-      });
-    }
+    if (body === undefined) throw new ApiError(response.status, invalidResponse);
     return body as T;
   }
 
+  async function request<T>(method: Method, path: string, opts: RequestOptions = {}): Promise<T> {
+    const useAuth = !!auth && !opts.skipAuth;
+    const token = useAuth ? ((await auth.getAccessToken()) ?? null) : null;
+    const response = await send(method, path, opts, token);
+
+    if (response.status !== 401 || !useAuth || !token) return parse<T>(response);
+
+    // 401 with a token: refresh once, then retry once.
+    const fresh = await refreshOnce(); // network errors propagate; session is kept
+    if (!fresh) {
+      auth.onSessionEnded();
+      return parse<T>(response);
+    }
+    const retried = await send(method, path, opts, fresh);
+    if (retried.status === 401) auth.onSessionEnded();
+    return parse<T>(retried);
+  }
+
   return {
-    getMe: () => get<Me>('/v1/me'),
-    getDiscoverHome: () => get<DiscoverHome>('/v1/discover/home'),
-    getStore: (slug: string) => get<Store>(`/v1/stores/${encodeURIComponent(slug)}`),
-    listProducts: (query: ListProductsQuery = {}) => get<ProductPage>('/v1/products', query),
+    // Auth (public; never trigger a refresh)
+    requestOtp: (body: OtpRequest) =>
+      request<OtpChallenge>('POST', '/v1/auth/otp/request', { body, skipAuth: true }),
+    verifyOtp: (body: OtpVerifyRequest) =>
+      request<AuthSession>('POST', '/v1/auth/otp/verify', { body, skipAuth: true }),
+    refreshSession: (body: { refreshToken: string; deviceId: string }) =>
+      request<TokenPair>('POST', '/v1/auth/refresh', { body, skipAuth: true }),
+    logout: (body: { refreshToken: string }) =>
+      request<void>('POST', '/v1/auth/logout', { body, skipAuth: true }),
+
+    // Me
+    getMe: () => request<Me>('GET', '/v1/me'),
+    updateMe: (body: MeUpdate) => request<Me>('PATCH', '/v1/me', { body }),
+    becomeSeller: () => request<Me>('POST', '/v1/me/seller'),
+    deleteMe: () =>
+      request<AccountDeletion>('DELETE', '/v1/me', { body: { confirmation: 'DELETE' } }),
+    sendEmailVerification: () =>
+      request<EmailVerificationSent>('POST', '/v1/me/email/verification'),
+    getDataExport: () => request<DataExport>('GET', '/v1/me/data-export'),
+    requestDataExport: () => request<DataExport>('POST', '/v1/me/data-export'),
+    checkUsername: (username: string) =>
+      request<UsernameAvailability>('GET', '/v1/usernames/availability', { query: { username } }),
+
+    // Discovery
+    getDiscoverHome: () => request<DiscoverHome>('GET', '/v1/discover/home'),
+    listCategories: (query: ListCategoriesQuery = {}) =>
+      request<CategoryPage>('GET', '/v1/discover/categories', { query }),
+    getStore: (slug: string) => request<Store>('GET', `/v1/stores/${encodeURIComponent(slug)}`),
+    listProducts: (query: ListProductsQuery = {}) =>
+      request<ProductPage>('GET', '/v1/products', { query }),
   };
 }
 

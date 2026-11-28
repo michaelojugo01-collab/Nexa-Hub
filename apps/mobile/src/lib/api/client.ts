@@ -13,6 +13,4 @@ export const api = createApiClient({
         scenario: config.mockScenario,
       })
     : undefined,
-  // TODO(F1): return the access token once auth exists.
-  getAccessToken: () => null,
 });

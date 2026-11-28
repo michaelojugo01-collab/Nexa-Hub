@@ -4,6 +4,93 @@
  */
 
 export interface paths {
+  '/v1/auth/otp/request': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Send a one-time sign-in code
+     * @description Sends a 6-digit code by SMS or WhatsApp (phone) or by email. Works for both sign-up and
+     *     sign-in: the server decides whether the account exists at verify time.
+     *     Codes expire after 5 minutes. A new code for the same destination can be requested once
+     *     `resendAvailableAt` has passed (60 seconds). Requesting a new code invalidates the old one.
+     *     Rate limited per phone, device and IP.
+     */
+    post: operations['requestOtp'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/auth/otp/verify': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Verify a code and start a session
+     * @description At most 5 wrong attempts per challenge; the 6th attempt is refused with OTP_LOCKED and the
+     *     user must request a new code. On success returns a 15-minute access token and a rotating
+     *     refresh token bound to `deviceId`. `isNewUser` is true when this created the account.
+     */
+    post: operations['verifyOtp'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/auth/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Exchange a refresh token for a new token pair
+     * @description Refresh tokens rotate: each one works once. Using an already-used refresh token is treated
+     *     as theft and revokes every session for that user.
+     */
+    post: operations['refreshSession'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/auth/logout': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * End this device's session
+     * @description Revokes the refresh token. Succeeds even if the token is already invalid.
+     */
+    post: operations['logout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/me': {
     parameters: {
       query?: never;
@@ -13,6 +100,122 @@ export interface paths {
     };
     /** The signed-in user */
     get: operations['getMe'];
+    put?: never;
+    post?: never;
+    /**
+     * Delete the signed-in user's account (proposed)
+     * @description PROPOSED — not in the spec's endpoint list (see docs/decisions.md).
+     *     Deactivates the account and signs out every device immediately. Permanent deletion
+     *     happens 30 days later; signing in again before then cancels it. Records the law requires
+     *     us to keep (orders, ledger) are retained.
+     */
+    delete: operations['deleteMe'];
+    options?: never;
+    head?: never;
+    /**
+     * Update the signed-in user's profile
+     * @description Send only the fields to change. Changing `email` sets `emailVerified` to false and sends a
+     *     verification link. `interests` holds up to 3 category slugs.
+     */
+    patch: operations['updateMe'];
+    trace?: never;
+  };
+  '/v1/me/seller': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Upgrade the signed-in buyer to a seller
+     * @description One tap, no approval, no re-login. Idempotent: calling it again returns the same user.
+     *     The current access token stays valid; roles are always read from the returned user.
+     */
+    post: operations['becomeSeller'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/me/email/verification': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Send (or re-send) the email verification link (proposed)
+     * @description PROPOSED — the spec mentions an email verification link but lists no endpoint.
+     */
+    post: operations['sendEmailVerification'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/me/data-export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Status of the user's data export (proposed)
+     * @description PROPOSED — the spec requires data export (F1, F13) but lists no endpoint.
+     */
+    get: operations['getDataExport'];
+    put?: never;
+    /**
+     * Request a copy of the user's data (proposed)
+     * @description PROPOSED. Queues an export; the user is emailed a download link when it is ready.
+     *     Idempotent while a request is pending.
+     */
+    post: operations['requestDataExport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/usernames/availability': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Live username availability check (proposed)
+     * @description PROPOSED — the spec requires a live availability check but lists no endpoint.
+     *     Advisory only: PATCH /v1/me re-checks and can still return USERNAME_TAKEN.
+     */
+    get: operations['checkUsername'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/discover/categories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Product categories (also used as interest tags) */
+    get: operations['listCategories'];
     put?: never;
     post?: never;
     delete?: never;
@@ -149,15 +352,125 @@ export interface components {
     };
     Me: {
       id: string;
-      username: string;
-      displayName: string;
+      /** @description Null until the user picks one during onboarding. */
+      username: components['schemas']['Username'] | null;
+      displayName: string | null;
       /** Format: uri */
       avatarUrl: string | null;
+      bio: string | null;
+      /** @description E.164, always +234 for Nigeria. Null for email-only accounts. */
+      phone: components['schemas']['PhoneE164'] | null;
+      /** Format: email */
+      email: string | null;
+      emailVerified: boolean;
+      /** @description Category slugs (see GET /v1/discover/categories). */
+      interests: string[];
       roles: components['schemas']['Role'][];
-      /** @description The user's store if they are a seller. */
+      /** @description The user's store if they are a seller and have created one (F2). */
       store: components['schemas']['StoreSummary'] | null;
       /** Format: date-time */
       createdAt: string;
+    };
+    /**
+     * @description 3–20 characters, starts with a letter, lowercase a–z, 0–9 and underscore.
+     * @example chidi_n
+     */
+    Username: string;
+    /**
+     * @description Nigerian mobile number in E.164 format.
+     * @example +2348031234567
+     */
+    PhoneE164: string;
+    MeUpdate: {
+      displayName?: string;
+      username?: components['schemas']['Username'];
+      bio?: string | null;
+      /** Format: email */
+      email?: string;
+      interests?: string[];
+    };
+    /** @enum {string} */
+    OtpChannel: 'sms' | 'whatsapp' | 'email';
+    OtpRequest: components['schemas']['OtpRequestPhone'] | components['schemas']['OtpRequestEmail'];
+    OtpRequestPhone: {
+      phone: components['schemas']['PhoneE164'];
+      /** @enum {string} */
+      channel: 'sms' | 'whatsapp';
+    };
+    OtpRequestEmail: {
+      /** Format: email */
+      email: string;
+      /** @enum {string} */
+      channel: 'email';
+    };
+    OtpChallenge: {
+      challengeId: string;
+      channel: components['schemas']['OtpChannel'];
+      /** @description Masked destination for display, e.g. "+234 803 *** 4567". */
+      sentTo: string;
+      /** Format: date-time */
+      expiresAt: string;
+      /** Format: date-time */
+      resendAvailableAt: string;
+    };
+    OtpVerifyRequest: {
+      challengeId: string;
+      code: string;
+      /** @description Random ID generated once per install and kept in secure storage. */
+      deviceId: string;
+    };
+    TokenPair: {
+      /** @description Valid for 15 minutes. */
+      accessToken: string;
+      /** Format: date-time */
+      accessTokenExpiresAt: string;
+      /** @description Single use; rotates on every refresh. */
+      refreshToken: string;
+    };
+    AuthSession: components['schemas']['TokenPair'] & {
+      user: components['schemas']['Me'];
+      isNewUser: boolean;
+    };
+    RefreshRequest: {
+      refreshToken: string;
+      deviceId: string;
+    };
+    LogoutRequest: {
+      refreshToken: string;
+    };
+    UsernameAvailability: {
+      username: string;
+      available: boolean;
+      /** @enum {string|null} */
+      reason: 'taken' | 'reserved' | 'invalid' | null;
+    };
+    EmailVerificationSent: {
+      sentTo: string;
+    };
+    DeleteAccountRequest: {
+      /** @constant */
+      confirmation: 'DELETE';
+    };
+    AccountDeletion: {
+      /** Format: date-time */
+      deactivatedAt: string;
+      /** Format: date-time */
+      deletesAt: string;
+    };
+    DataExport: {
+      /** @enum {string} */
+      status: 'none' | 'requested' | 'ready';
+      /** Format: date-time */
+      requestedAt: string | null;
+    };
+    Category: {
+      id: string;
+      slug: string;
+      name: string;
+    };
+    CategoryPage: {
+      data: components['schemas']['Category'][];
+      nextCursor: string | null;
     };
   };
   responses: {
@@ -176,18 +489,15 @@ export interface components {
         'application/json': components['schemas']['Error'];
       };
     };
-    /** @description Missing or expired access token */
+    /**
+     * @description Missing, invalid or expired access token. On ACCESS_TOKEN_EXPIRED the client refreshes
+     *     once (POST /v1/auth/refresh) and retries; on anything else it signs the user out.
+     */
     Unauthenticated: {
       headers: {
         [name: string]: unknown;
       };
       content: {
-        /**
-         * @example {
-         *       "code": "UNAUTHENTICATED",
-         *       "message": "Please sign in again."
-         *     }
-         */
         'application/json': components['schemas']['Error'];
       };
     };
@@ -206,16 +516,18 @@ export interface components {
         'application/json': components['schemas']['Error'];
       };
     };
-    /** @description Too many requests */
+    /** @description Too many requests. Retry-After says how many seconds to wait. */
     RateLimited: {
       headers: {
+        /** @description Seconds until the next attempt is allowed */
+        'Retry-After'?: number;
         [name: string]: unknown;
       };
       content: {
         /**
          * @example {
          *       "code": "RATE_LIMITED",
-         *       "message": "Too many requests. Please wait a moment."
+         *       "message": "Too many attempts. Try again in 60 seconds."
          *     }
          */
         'application/json': components['schemas']['Error'];
@@ -244,6 +556,174 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  requestOtp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OtpRequest'];
+      };
+    };
+    responses: {
+      /** @description Code sent */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OtpChallenge'];
+        };
+      };
+      /** @description Invalid phone or email */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      429: components['responses']['RateLimited'];
+      500: components['responses']['InternalError'];
+      /** @description The chosen channel is down. Offer another channel. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  verifyOtp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "challengeId": "otp_01J0ABCXYZ",
+         *       "code": "123456",
+         *       "deviceId": "dev_7f3a9c2e1b"
+         *     }
+         */
+        'application/json': components['schemas']['OtpVerifyRequest'];
+      };
+    };
+    responses: {
+      /** @description Signed in */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AuthSession'];
+        };
+      };
+      /** @description Wrong, expired or locked code */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      429: components['responses']['RateLimited'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  refreshSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "refreshToken": "rt_9d8c7b6a5f4e",
+         *       "deviceId": "dev_7f3a9c2e1b"
+         *     }
+         */
+        'application/json': components['schemas']['RefreshRequest'];
+      };
+    };
+    responses: {
+      /** @description New token pair */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "accessToken": "at_1a2b3c4d5e",
+           *       "accessTokenExpiresAt": "2026-11-28T10:15:00Z",
+           *       "refreshToken": "rt_0f1e2d3c4b5a"
+           *     }
+           */
+          'application/json': components['schemas']['TokenPair'];
+        };
+      };
+      /** @description Refresh token unknown, used, expired or revoked. Sign in again. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "REFRESH_TOKEN_INVALID",
+           *       "message": "Your session has ended. Please sign in again."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      500: components['responses']['InternalError'];
+    };
+  };
+  logout: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "refreshToken": "rt_9d8c7b6a5f4e"
+         *     }
+         */
+        'application/json': components['schemas']['LogoutRequest'];
+      };
+    };
+    responses: {
+      /** @description Signed out */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['ValidationError'];
+      500: components['responses']['InternalError'];
+    };
+  };
   getMe: {
     parameters: {
       query?: never;
@@ -263,6 +743,280 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthenticated'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  deleteMe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "confirmation": "DELETE"
+         *     }
+         */
+        'application/json': components['schemas']['DeleteAccountRequest'];
+      };
+    };
+    responses: {
+      /** @description Deactivated; deletion scheduled */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "deactivatedAt": "2026-11-28T10:00:00Z",
+           *       "deletesAt": "2026-12-28T10:00:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['AccountDeletion'];
+        };
+      };
+      400: components['responses']['ValidationError'];
+      401: components['responses']['Unauthenticated'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  updateMe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "displayName": "Chidi Nwosu",
+         *       "username": "chidi_n"
+         *     }
+         */
+        'application/json': components['schemas']['MeUpdate'];
+      };
+    };
+    responses: {
+      /** @description The updated user */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Me'];
+        };
+      };
+      /** @description Validation failed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      /** @description Username or email already in use, or the username is reserved */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      500: components['responses']['InternalError'];
+    };
+  };
+  becomeSeller: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The updated user, now with the seller role */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Me'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  sendEmailVerification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Link sent */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "sentTo": "c***@example.com"
+           *     }
+           */
+          'application/json': components['schemas']['EmailVerificationSent'];
+        };
+      };
+      /** @description No email on the account, or it is already verified */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "VALIDATION_ERROR",
+           *       "message": "Add an email address first."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  getDataExport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current export status */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "status": "requested",
+           *       "requestedAt": "2026-11-28T10:00:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['DataExport'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+    };
+  };
+  requestDataExport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Export requested */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "status": "requested",
+           *       "requestedAt": "2026-11-28T10:00:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['DataExport'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  checkUsername: {
+    parameters: {
+      query: {
+        /** @example chidi_n */
+        username: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Availability */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UsernameAvailability'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  listCategories: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of categories */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "data": [
+           *         {
+           *           "id": "cat_fashion",
+           *           "slug": "fashion",
+           *           "name": "Fashion & textiles"
+           *         },
+           *         {
+           *           "id": "cat_education",
+           *           "slug": "education",
+           *           "name": "Exam prep & education"
+           *         }
+           *       ],
+           *       "nextCursor": null
+           *     }
+           */
+          'application/json': components['schemas']['CategoryPage'];
+        };
+      };
+      400: components['responses']['ValidationError'];
       500: components['responses']['InternalError'];
     };
   };
