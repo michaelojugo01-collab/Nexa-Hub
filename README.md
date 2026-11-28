@@ -84,13 +84,40 @@ In **Expo Go** the scheme is Expo Go's own, so use the URL the dev server prints
 
 ```
 apps/mobile            Expo app (src/app = routes, src/components = the 15 core components,
-                       src/features = screen code, src/mocks = fixtures + mock API)
-apps/api|admin|web     not started
-packages/api-contract  openapi.yaml, generated types, typed client
-packages/ui            design tokens + Tailwind preset
-packages/config        ESLint, Prettier, tsconfig
-docs/                  spec and decisions log
+                       src/features = screen code)
+apps/web               Next.js public pages: /{store}, /{store}/{product}, /@{user} (F3)
+apps/api|admin         not started
+packages/api-contract  openapi.yaml, generated types, typed client, shared rules
+packages/mocks         mock backend: fixtures + fake API, used by the app, the web and tests
+packages/ui            design tokens, Tailwind preset, formatKobo
+packages/config        ESLint, Prettier, tsconfig, site.ts (domain, store IDs: placeholders)
+docs/                  spec, decisions log, deep-links.md
 ```
+
+## Public web pages (apps/web)
+
+Read-only Next.js site: link previews for WhatsApp/Instagram/TikTok and a way into the app.
+No sign-in and no buying on the web.
+
+```bash
+pnpm --filter @nexa/web dev          # http://localhost:3000/adaezeprints
+pnpm --filter @nexa/web build && pnpm --filter @nexa/web start
+pnpm --filter @nexa/web test         # Vitest unit tests (also run by pnpm test)
+pnpm --filter @nexa/web test:smoke   # Playwright against the production build (build first)
+```
+
+`apps/web/.env`: `USE_MOCKS=true` reads the shared mock data; set `USE_MOCKS=false` and
+`API_URL` for the real API. Try `/adaezeprints`, `/adaezestudio` (old slug → 308),
+`/lensbyemeka` (private → 404), `/adaezeprints/ankara-print-pattern-pack-40-designs?ref=ADA25`,
+`/@adaeze`, `/sitemap.xml`, `/.well-known/assetlinks.json`.
+
+**Vercel previews:** vercel.com → Add New → Project → import this GitHub repo → **Root
+Directory: `apps/web`** (framework Next.js, pnpm detected; keep "Include files outside the
+root directory" on). Every push then gets a preview URL. To check a link preview, paste a
+product URL from the preview into WhatsApp. Run PageSpeed Insights on the same URL.
+
+Deep links (universal links / App Links), the real IDs to fill in, and testing on an Android
+dev build: [`docs/deep-links.md`](docs/deep-links.md).
 
 ## Builds (EAS, iOS and Android)
 

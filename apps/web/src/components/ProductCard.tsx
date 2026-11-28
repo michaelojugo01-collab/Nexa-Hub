@@ -1,5 +1,4 @@
 import type { ProductSummary } from '@nexa/api-contract';
-import { formatKobo } from '@nexa/ui';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -27,7 +26,6 @@ export function ProductCard({
       href={productPath(product)}
       prefetch={false}
       className="block overflow-hidden rounded-lg border border-border bg-surface"
-      aria-label={`${product.title}, ${formatKobo(product.price.amountKobo)}`}
       data-testid={`product-card-${product.slug}`}>
       <div className="relative aspect-square w-full bg-surface-muted">
         {product.imageUrl ? (

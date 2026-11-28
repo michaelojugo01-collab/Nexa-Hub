@@ -7,19 +7,22 @@ and `packages/api-contract/openapi.yaml`. Never invent features or endpoints. De
 
 ## Stack and layout (pnpm workspaces, `node-linker=hoisted`)
 
-| Path                                 | What                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `apps/mobile`                        | Expo + TypeScript (strict) + Expo Router. Routes in `src/app/`, everything else outside it |
-| `apps/api`, `apps/admin`, `apps/web` | Not started                                                                                |
-| `packages/api-contract`              | `openapi.yaml` → generated types (`src/generated/`) + thin typed client                    |
-| `packages/ui`                        | Design tokens (colours, spacing, radius, type) + Tailwind preset                           |
-| `packages/config`                    | Shared ESLint, Prettier, tsconfig                                                          |
+| Path                     | What                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| `apps/mobile`            | Expo + TypeScript (strict) + Expo Router. Routes in `src/app/`, everything else outside it |
+| `apps/web`               | Next.js public pages (F3): read-only, server-rendered, no checkout or sign-in              |
+| `apps/api`, `apps/admin` | Not started                                                                                |
+| `packages/api-contract`  | `openapi.yaml` → generated types (`src/generated/`) + thin typed client + shared rules     |
+| `packages/mocks`         | Mock backend (fixtures, fake API), shared by the app, the web and tests                    |
+| `packages/ui`            | Design tokens (colours, spacing, radius, type) + Tailwind preset + `formatKobo`            |
+| `packages/config`        | Shared ESLint, Prettier, tsconfig; `site.ts` = domain and store IDs (ONE placeholder file) |
 
 App libraries: TanStack Query, Zustand, react-hook-form + zod, NativeWind, FlashList, expo-image,
 expo-network, expo-linear-gradient, @expo/vector-icons, expo-dev-client, expo-secure-store,
 expo-local-authentication, expo-image-picker, @hookform/resolvers, expo-image-manipulator,
 expo-clipboard, expo-sharing, expo-file-system, react-native-svg, react-native-qrcode-svg. Local native module:
-`apps/mobile/modules/sms-retriever` (Android). **No new libraries without asking first.**
+`apps/mobile/modules/sms-retriever` (Android). Web libraries: next, tailwindcss 3 (+ postcss,
+autoprefixer), vitest, @playwright/test. **No new libraries without asking first.**
 
 Commands (root): `pnpm dev` (Expo Go), `pnpm dev:client` (development build), `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm generate:api`.
 Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
@@ -55,8 +58,12 @@ Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
   never AsyncStorage. Write `/v1/me` results with `applyMe()` so the store and cache agree.
   Never compute roles or access client-side (`isSeller()` only reads `user.roles`).
 - Logging: `logger.sensitive()` for codes, tokens and phone numbers (prints only in mock mode).
-- Mocks: fixtures in `apps/mobile/src/mocks/fixtures`, reused by tests. `EXPO_PUBLIC_USE_MOCKS=true`
-  answers requests from `src/mocks/handlers.ts`.
+- Mocks: fixtures and the fake API in `packages/mocks`, reused by tests. App:
+  `EXPO_PUBLIC_USE_MOCKS=true`; web: `USE_MOCKS=true`. App-only mock bits (secure-store
+  persistence, Dev settings switches) stay in `apps/mobile/src/mocks`.
+- Web: pages stay cacheable (no cookies/headers/searchParams on the server; read `?ref` and
+  the platform in client islands). Client JS only for the banner, buttons, ref box and
+  analytics. Images through `next/image`. Metadata and JSON-LD built in `src/lib/seo.ts`.
 
 ## Workflow
 

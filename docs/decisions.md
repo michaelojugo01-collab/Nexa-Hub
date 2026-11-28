@@ -2,6 +2,53 @@
 
 Newest first. Each entry: what was decided, why, and what would change it.
 
+## 2026-11-28 — F3 Public web pages and deep links
+
+1. **Proposed endpoints** (`x-status: proposed` in `openapi.yaml`, contract v0.4):
+   - `slug` on products (`ProductSlug`, 3–60 characters, unique within a store, made from the
+     title).
+   - `GET /v1/stores/{storeSlug}/products/{productSlug}` → `Product` (summary + `description`,
+     `images`, `storeInfo`, `publishedAt`, `redirectTo`). 404 for unpublished products and
+     private stores; an old store slug returns the product with `redirectTo`.
+   - `GET /v1/users/{username}` → `PublicProfile` (username, display name, avatar, bio, public
+     store or null, member since). Never phone, email or interests.
+   - `GET /v1/sitemap?cursor=&limit=` → `{ data: [{ type, path, updatedAt }], nextCursor }`,
+     public stores and live products of public stores only.
+2. **No web checkout, sign-in or buying** (Part 9 decision #3: not in the first build). The
+   product page's main button is "Buy in the app".
+3. **Private stores are 404 on the web** (not "This store is private" as in the app), with
+   `noindex`, like unpublished products and unknown slugs. Old store slugs are a 308.
+4. **"Open in app" on iOS (approved, option A):** tries `nexahub://{path}` and goes to the App
+   Store after 1.5 s; iOS Safari also shows the Smart App Banner (`apple-itunes-app`). Reason:
+   iOS doesn't open universal links for taps within the same site. Android: `intent://` with
+   `scheme=https` and the Play Store as `browser_fallback_url`. Desktop: both store links.
+5. **Referral codes:** `?ref=CODE` is read in the browser (pages stay cached), shown with
+   Copy, kept on links, and sent to Google Play as `referrer=ref=CODE`. No Branch. The
+   spec's fallback (ask for the code in onboarding) is an app change for later.
+6. **Caching:** classic ISR (not Next 16 Cache Components, which would stream and could turn
+   404/308 into 200s). Data reads go through `unstable_cache` with `site.revalidateSeconds`
+   (60), which sets every page's revalidation; featured stores are prerendered at build.
+7. **One placeholders file:** `packages/config/site.ts` (domain `nexahub.app`, App Store ID,
+   Team ID, bundle ID, Play package, SHA-256 fingerprints, 60 s). The web, the app's store
+   links and `apps/mobile/app.config.ts` import it. How to get real values:
+   `docs/deep-links.md`.
+8. **Shared code:** mock backend moved to `packages/mocks` (app and web read the same data);
+   slug/upload/store rules to `@nexa/api-contract` (`rules.ts`); `formatKobo` to `@nexa/ui`.
+9. **Web stack (approved):** Next.js 16.4.6 (App Router), Tailwind 3 with the same preset as
+   NativeWind (colour variables written from `@nexa/ui` tokens), Vitest 5 for unit tests,
+   `@playwright/test` 1.63.0 for a smoke test against the production build. System fonts
+   (no web font download). Lighthouse is run with `npx`, not installed.
+10. **Analytics:** `track()` in `apps/web/src/lib/analytics.ts` with `page_view`,
+    `open_in_app_click`, `get_app_click`, `ref_code_copied`; logs to the console in mock mode
+    (`NEXT_PUBLIC_ANALYTICS=mock`). PostHog later behind the same function (ask first).
+11. **App side:** `+native-intent` maps web links to routes; placeholder product screen (F4
+    replaces it) and public profile screen; web route names added to the reserved slugs.
+12. **Known limits:** Android App Links claim every path on the domain; an old store link with
+    `?ref=` loses the code on the 308; client JavaScript is ~136 KB, almost all Next.js's own
+    runtime (our islands: banner, buttons, ref box, page view). Once, in the smoke test, a
+    redirect served while two requests rendered it at the same moment carried a duplicated
+    (identical) `Location` header; not reproducible since — watch on Vercel.
+
 ## 2026-11-28 — F2 Stores and profiles (front end)
 
 1. **Proposed endpoints** (not in the spec's list; `x-status: proposed` in `openapi.yaml`):

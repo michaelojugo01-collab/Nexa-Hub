@@ -1128,8 +1128,19 @@ components:
         - $ref: '#/components/schemas/StoreSummary'
         - type: object
           required:
-            [bio, coverUrl, productCount, isFollowing, createdAt, category, avatar, banner,
-             visibility, isOwner, redirectTo]
+            [
+              bio,
+              coverUrl,
+              productCount,
+              isFollowing,
+              createdAt,
+              category,
+              avatar,
+              banner,
+              visibility,
+              isOwner,
+              redirectTo,
+            ]
           properties:
             bio:
               type: [string, 'null']
