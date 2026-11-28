@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @nexa/mobile dev",
+    "dev:client": "pnpm --filter @nexa/mobile dev:client",
     "lint": "pnpm -r --parallel run lint",
     "typecheck": "pnpm -r --parallel run typecheck",
     "test": "pnpm -r run test",

@@ -14,9 +14,13 @@ Needs Node 22 (`.nvmrc`), pnpm 10 (`corepack enable`) and the **Expo Go** app on
 
 ```bash
 pnpm install
-pnpm dev          # scan the QR code: iPhone → Camera app, Android → Expo Go
+pnpm dev          # Expo Go: scan the QR code (iPhone → Camera app, Android → Expo Go)
                   # (phone and computer must be on the same Wi-Fi)
+pnpm dev:client   # same, but opens in a development build of Nexa Hub (see Builds)
 ```
+
+Use Expo Go until we add a library with native code that Expo Go doesn't include. From then on,
+install a development build once (`development` profile below) and use `pnpm dev:client`.
 
 The app runs against a **mock API** by default (`apps/mobile/.env`). To see other states, create
 `apps/mobile/.env.local`:
@@ -78,5 +82,3 @@ Development and preview builds use the mock API; production points at the real A
 iPhone. For ad hoc builds, register each test iPhone first with `npx eas-cli@latest device:create`
 (max 100 devices a year). TestFlight builds use the `production` profile plus
 `npx eas-cli@latest submit -p ios`. Simulator builds need no Apple account.
-
-\* `development` profiles need `expo-dev-client`, which is not installed yet.

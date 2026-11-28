@@ -2,6 +2,15 @@
 
 Newest first. Each entry: what was decided, why, and what would change it.
 
+## 2026-11-28 — expo-dev-client added
+
+1. **`expo-dev-client` installed** (approved) so the `development` and `development-simulator`
+   EAS profiles produce development builds on iOS and Android.
+2. **`pnpm dev` stays on Expo Go** (`expo start --go`); `pnpm dev:client` targets development
+   builds. With expo-dev-client installed, plain `expo start` would default to development
+   builds, which nobody has installed yet. Switch `pnpm dev` to development builds once we add
+   a native library Expo Go doesn't include (e.g. react-native-pdf from the spec).
+
 ## 2026-11-28 — Build for iOS and Android equally
 
 1. **iOS and Android are both first-class from now on** (replaces "Android first" in the spec's

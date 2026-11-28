@@ -16,9 +16,9 @@ and `packages/api-contract/openapi.yaml`. Never invent features or endpoints. De
 | `packages/config`                    | Shared ESLint, Prettier, tsconfig                                                          |
 
 App libraries: TanStack Query, Zustand, react-hook-form + zod, NativeWind, FlashList, expo-image,
-expo-network, expo-linear-gradient, @expo/vector-icons. **No new libraries without asking first.**
+expo-network, expo-linear-gradient, @expo/vector-icons, expo-dev-client. **No new libraries without asking first.**
 
-Commands (root): `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm generate:api`.
+Commands (root): `pnpm dev` (Expo Go), `pnpm dev:client` (development build), `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm generate:api`.
 Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
 
 ## Engineering rules
