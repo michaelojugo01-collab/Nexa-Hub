@@ -1,6 +1,6 @@
 # Nexa Hub
 
-A Nigerian creator and seller marketplace. iOS and Android from one Expo codebase.
+A Nigerian creator and seller marketplace for iOS and Android, from one Expo codebase.
 
 - Spec: [`docs/NEXA_HUB_Build_Specification.pdf`](docs/NEXA_HUB_Build_Specification.pdf)
 - Decisions: [`docs/decisions.md`](docs/decisions.md)
@@ -8,11 +8,14 @@ A Nigerian creator and seller marketplace. iOS and Android from one Expo codebas
 
 ## Getting started
 
-Needs Node 22 (`.nvmrc`), pnpm 10 (`corepack enable`) and the **Expo Go** app on an Android phone.
+Needs Node 22 (`.nvmrc`), pnpm 10 (`corepack enable`) and the **Expo Go** app on your phone
+([iPhone](https://apps.apple.com/app/expo-go/id982107779) or
+[Android](https://play.google.com/store/apps/details?id=host.exp.exponent)).
 
 ```bash
 pnpm install
-pnpm dev          # scan the QR code with Expo Go (phone and computer on the same Wi-Fi)
+pnpm dev          # scan the QR code: iPhone → Camera app, Android → Expo Go
+                  # (phone and computer must be on the same Wi-Fi)
 ```
 
 The app runs against a **mock API** by default (`apps/mobile/.env`). To see other states, create
@@ -51,12 +54,29 @@ packages/config        ESLint, Prettier, tsconfig
 docs/                  spec and decisions log
 ```
 
-## Builds (EAS, Android first)
+## Builds (EAS, iOS and Android)
 
 ```bash
 cd apps/mobile
 npx eas-cli@latest login
-npx eas-cli@latest build --profile preview --platform android   # installable APK
+npx eas-cli@latest build --profile preview --platform all
 ```
 
-Profiles are in `apps/mobile/eas.json`: `development`, `preview` and `production`.
+Profiles in `apps/mobile/eas.json`:
+
+| Profile                 | Android               | iOS                                             |
+| ----------------------- | --------------------- | ----------------------------------------------- |
+| `development`           | APK with dev tools*   | Registered iPhones (ad hoc)*                    |
+| `development-simulator` | —                     | iOS Simulator on a Mac*                         |
+| `preview`               | Installable APK       | Registered iPhones (ad hoc)                     |
+| `preview-simulator`     | —                     | iOS Simulator on a Mac, no Apple account needed |
+| `production`            | Play Store app bundle | App Store / TestFlight                          |
+
+Development and preview builds use the mock API; production points at the real API.
+
+**iOS needs a paid Apple Developer account** (US$99/year) for any build that installs on a real
+iPhone. For ad hoc builds, register each test iPhone first with `npx eas-cli@latest device:create`
+(max 100 devices a year). TestFlight builds use the `production` profile plus
+`npx eas-cli@latest submit -p ios`. Simulator builds need no Apple account.
+
+\* `development` profiles need `expo-dev-client`, which is not installed yet.

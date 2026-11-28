@@ -1,6 +1,7 @@
 # Nexa Hub — project rules
 
-Nigerian creator/seller marketplace. Source of truth: `docs/NEXA_HUB_Build_Specification.pdf`
+Nigerian creator/seller marketplace for **iOS and Android** (one Expo codebase; web is only for
+public links and admin later). Source of truth: `docs/NEXA_HUB_Build_Specification.pdf`
 and `packages/api-contract/openapi.yaml`. Never invent features or endpoints. Decisions go in
 `docs/decisions.md`. Expo-specific guidance: `apps/mobile/AGENTS.md`.
 
@@ -26,6 +27,9 @@ Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
 - The app never decides money or access. It only shows what the server returns. No client-side price/fee maths.
 - Every list endpoint is cursor-paginated: `{ data, nextCursor }`.
 - Every screen handles **loading, empty, error and offline** states.
+- **Build for iOS and Android equally.** Check every change on both: tests run per platform
+  (`jest-expo/ios` + `jest-expo/android`), both bundles must build, and platform-specific code uses
+  `Platform.select` or `.ios.tsx`/`.android.tsx` files with both sides implemented.
 - Release modules (R1–R13) go behind feature flags.
 - No secrets in the app. `EXPO_PUBLIC_*` values are public.
 - Never hand-edit `packages/api-contract/src/generated/`. Change `openapi.yaml`, run `pnpm generate:api`.

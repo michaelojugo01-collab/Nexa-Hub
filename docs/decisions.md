@@ -2,6 +2,24 @@
 
 Newest first. Each entry: what was decided, why, and what would change it.
 
+## 2026-11-28 — Build for iOS and Android equally
+
+1. **iOS and Android are both first-class from now on** (replaces "Android first" in the spec's
+   F0 card). Every change is checked on both: Jest runs each test under `jest-expo/ios` and
+   `jest-expo/android`, and both bundles must build.
+2. **EAS profiles:** added `development-simulator` and `preview-simulator` (iOS Simulator
+   builds need no Apple account). `development` and `preview` produce ad hoc iOS builds for
+   registered iPhones. TestFlight uses `production` + `eas submit`. A shared `base` profile
+   holds the mock env.
+3. **iPhone only for now** (`ios.supportsTablet: false`, Expo's default). Supporting iPad
+   means designing tablet layouts; revisit after launch.
+4. **`ios.config.usesNonExemptEncryption: false`.** The app only uses standard HTTPS, which
+   is exempt, so TestFlight/App Store uploads skip the export-compliance question. Revisit if
+   we add custom encryption.
+5. **Needs from the owner before real iOS builds:** an Apple Developer Program membership,
+   the final bundle ID (placeholder `ng.nexahub.app`), and test iPhones registered with
+   `eas device:create`.
+
 ## 2026-11-28 — F0 front-end foundation
 
 1. **pnpm workspaces with `node-linker=hoisted`.** Expo/Metro expects a flat `node_modules`.
@@ -11,7 +29,7 @@ Newest first. Each entry: what was decided, why, and what would change it.
    on chrome badges, verified-avatar rings and default store covers.
 3. **Muted status colours** (green, amber, red) are kept for success, warning and error, for
    clarity and accessibility. Approved.
-4. **Font: system font** (San Francisco / Roboto) until a brand font is chosen. TODO in
+4. **Font: system font** (San Francisco / Roboto) until a brand font is chosen (owner will pick one soon). TODO in
    `packages/ui/src/typography.ts`.
 5. **NativeWind v4 (4.2.x, latest stable)** rather than Tamagui. The `@nexa/ui` Tailwind preset
    _replaces_ Tailwind's default colours, spacing, radius and font sizes, so only token classes
@@ -40,6 +58,6 @@ Newest first. Each entry: what was decided, why, and what would change it.
     `expo-web-browser`, `expo-device`). Web export is a single-page app (`web.output: single`).
 15. **The spec PDF is committed** to the repository at the owner's request, although it is
     marked confidential and the repository is public.
-16. **EAS profiles:** development and preview use mocks (no backend yet); production points at
+16. **EAS profiles** (superseded by the iOS entry above): development and preview use mocks (no backend yet); production points at
     `https://api.nexahub.ng` with mocks off. The development profile needs `expo-dev-client`,
     which is not installed yet (needs approval).

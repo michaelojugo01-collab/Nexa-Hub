@@ -4,24 +4,31 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "android": { "buildType": "apk" },
+    "base": {
       "env": {
         "EXPO_PUBLIC_USE_MOCKS": "true",
         "EXPO_PUBLIC_MOCK_DELAY_MS": "800",
         "EXPO_PUBLIC_MOCK_FAILURE_RATE": "0"
       }
     },
-    "preview": {
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "env": {
-        "EXPO_PUBLIC_USE_MOCKS": "true",
-        "EXPO_PUBLIC_MOCK_DELAY_MS": "800",
-        "EXPO_PUBLIC_MOCK_FAILURE_RATE": "0"
-      }
+      "android": { "buildType": "apk" }
+    },
+    "development-simulator": {
+      "extends": "development",
+      "ios": { "simulator": true }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    "preview-simulator": {
+      "extends": "preview",
+      "ios": { "simulator": true }
     },
     "production": {
       "autoIncrement": true,
