@@ -1,0 +1,448 @@
+openapi: 3.1.0
+info:
+  title: Nexa Hub API
+  version: 0.1.0
+  description: |
+    Contract v0 — only the endpoints the F0 front end needs.
+
+    Conventions (apply to every endpoint added later):
+    - Money is an integer number of kobo in a `Money` object. Currency is always NGN.
+      The client only displays these values; the server computes every price and fee.
+    - Every list is cursor-paginated: `{ data: [...], nextCursor: string | null }`.
+      Pass `nextCursor` back as `cursor` to get the next page; `null` means no more pages.
+    - Every error body is `{ code, message }`. `code` is UPPER_SNAKE_CASE and stable;
+      `message` is safe to show to users.
+    - Timestamps are ISO 8601 strings in UTC. IDs are opaque strings.
+servers:
+  - url: https://api.nexahub.ng
+    description: Production (not live yet)
+  - url: https://staging-api.nexahub.ng
+    description: Staging (not live yet)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Me
+  - name: Discovery
+  - name: Stores
+  - name: Products
+
+paths:
+  /v1/me:
+    get:
+      tags: [Me]
+      operationId: getMe
+      summary: The signed-in user
+      responses:
+        '200':
+          description: The current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              examples:
+                seller:
+                  $ref: '#/components/examples/MeSeller'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/discover/home:
+    get:
+      tags: [Discovery]
+      operationId: getDiscoverHome
+      summary: Home feed sections
+      description: |
+        Fixed, bounded sections for the Home tab (each at most 10 items).
+        "See all" links use the paginated endpoints, e.g. GET /v1/products.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Home sections
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverHome'
+              examples:
+                default:
+                  $ref: '#/components/examples/DiscoverHomeDefault'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/stores/{slug}:
+    get:
+      tags: [Stores]
+      operationId: getStore
+      summary: A public store by its slug
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Slug'
+          example: adaezeprints
+      responses:
+        '200':
+          description: The store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Store'
+              examples:
+                default:
+                  $ref: '#/components/examples/StoreAdaeze'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: Live products, newest first
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: The `nextCursor` from the previous page. Omit for the first page.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: storeSlug
+          in: query
+          required: false
+          description: Only products from this store
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: One page of products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+              examples:
+                firstPage:
+                  $ref: '#/components/examples/ProductPageFirst'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 15-minute access token from POST /v1/auth/otp/verify (module F1).
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+          example: NOT_FOUND
+        message:
+          type: string
+          example: We couldn’t find that store.
+
+    Money:
+      type: object
+      description: An amount of Nigerian naira as integer kobo (₦1 = 100 kobo).
+      required: [amountKobo, currency]
+      properties:
+        amountKobo:
+          type: integer
+          format: int64
+          example: 450000
+        currency:
+          type: string
+          enum: [NGN]
+
+    Slug:
+      type: string
+      pattern: '^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$'
+      example: adaezeprints
+
+    Role:
+      type: string
+      enum: [buyer, seller, ambassador]
+
+    ProductType:
+      type: string
+      enum: [digital, ebook, course, service, physical]
+
+    StoreSummary:
+      type: object
+      required: [id, slug, name, avatarUrl, location, verified, followerCount]
+      properties:
+        id:
+          type: string
+        slug:
+          $ref: '#/components/schemas/Slug'
+        name:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+        location:
+          type: [string, 'null']
+          description: Free text, e.g. "Yaba, Lagos"
+        verified:
+          type: boolean
+        followerCount:
+          type: integer
+          minimum: 0
+
+    Store:
+      allOf:
+        - $ref: '#/components/schemas/StoreSummary'
+        - type: object
+          required: [bio, coverUrl, productCount, isFollowing, createdAt]
+          properties:
+            bio:
+              type: [string, 'null']
+            coverUrl:
+              type: [string, 'null']
+              format: uri
+            productCount:
+              type: integer
+              minimum: 0
+            isFollowing:
+              type: boolean
+              description: Always false when signed out.
+            createdAt:
+              type: string
+              format: date-time
+
+    ProductSummary:
+      type: object
+      required: [id, title, type, price, compareAtPrice, imageUrl, store, featured]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        type:
+          $ref: '#/components/schemas/ProductType'
+        price:
+          $ref: '#/components/schemas/Money'
+        compareAtPrice:
+          description: Original price when on sale; null otherwise.
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        imageUrl:
+          type: [string, 'null']
+          format: uri
+        store:
+          type: object
+          required: [slug, name]
+          properties:
+            slug:
+              $ref: '#/components/schemas/Slug'
+            name:
+              type: string
+        featured:
+          type: boolean
+
+    ProductPage:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSummary'
+        nextCursor:
+          type: [string, 'null']
+
+    DiscoverHome:
+      type: object
+      required: [featuredStores, trendingProducts, newProducts]
+      properties:
+        featuredStores:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/StoreSummary'
+        trendingProducts:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/ProductSummary'
+        newProducts:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/ProductSummary'
+
+    Me:
+      type: object
+      required: [id, username, displayName, avatarUrl, roles, store, createdAt]
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        store:
+          description: The user's store if they are a seller.
+          oneOf:
+            - $ref: '#/components/schemas/StoreSummary'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+
+  responses:
+    ValidationError:
+      description: The request was invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_ERROR
+            message: limit must be between 1 and 50.
+    Unauthenticated:
+      description: Missing or expired access token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHENTICATED
+            message: Please sign in again.
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: We couldn’t find that store.
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: RATE_LIMITED
+            message: Too many requests. Please wait a moment.
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_ERROR
+            message: Something went wrong on our side. Please try again.
+
+  examples:
+    MeSeller:
+      value:
+        id: usr_01HZX3K9Q2
+        username: adaeze
+        displayName: Adaeze Okafor
+        avatarUrl: null
+        roles: [buyer, seller]
+        store:
+          id: str_01HZX3M1A7
+          slug: adaezeprints
+          name: Adaeze Prints
+          avatarUrl: null
+          location: Yaba, Lagos
+          verified: true
+          followerCount: 12480
+        createdAt: '2026-10-02T09:15:00Z'
+    StoreAdaeze:
+      value:
+        id: str_01HZX3M1A7
+        slug: adaezeprints
+        name: Adaeze Prints
+        avatarUrl: null
+        location: Yaba, Lagos
+        verified: true
+        followerCount: 12480
+        bio: Hand-drawn Ankara patterns and print-ready textile designs.
+        coverUrl: null
+        productCount: 36
+        isFollowing: false
+        createdAt: '2026-10-02T09:20:00Z'
+    ProductPageFirst:
+      value:
+        data:
+          - id: prd_01HZX4A0B1
+            title: Ankara Print Pattern Pack (40 designs)
+            type: digital
+            price: { amountKobo: 450000, currency: NGN }
+            compareAtPrice: null
+            imageUrl: null
+            store: { slug: adaezeprints, name: Adaeze Prints }
+            featured: true
+        nextCursor: eyJpZCI6InByZF8wMUhaWDRBMEIxIn0
+    DiscoverHomeDefault:
+      value:
+        featuredStores:
+          - id: str_01HZX3M1A7
+            slug: adaezeprints
+            name: Adaeze Prints
+            avatarUrl: null
+            location: Yaba, Lagos
+            verified: true
+            followerCount: 12480
+        trendingProducts:
+          - id: prd_01HZX4A0B1
+            title: Ankara Print Pattern Pack (40 designs)
+            type: digital
+            price: { amountKobo: 450000, currency: NGN }
+            compareAtPrice: null
+            imageUrl: null
+            store: { slug: adaezeprints, name: Adaeze Prints }
+            featured: true
+        newProducts:
+          - id: prd_01HZX4C7D2
+            title: JAMB Physics Past Questions 2015–2025
+            type: ebook
+            price: { amountKobo: 150000, currency: NGN }
+            compareAtPrice: { amountKobo: 250000, currency: NGN }
+            imageUrl: null
+            store: { slug: studysmartabuja, name: StudySmart Abuja }
+            featured: false

@@ -1,0 +1,21 @@
+{
+  "name": "@nexa/api-contract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nexa Hub OpenAPI contract, generated types and a thin typed client",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./openapi.yaml": "./openapi.yaml"
+  },
+  "scripts": {
+    "generate": "openapi-typescript openapi.yaml --output src/generated/schema.ts && prettier --write src/generated/schema.ts --ignore-path ''",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~6.0.3"
+  }
+}
