@@ -54,12 +54,21 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Nexa Hub to use a photo from your library as your profile picture.",
+          "photosPermission": "Allow Nexa Hub to use photos from your library for your profile, store and product covers.",
           "cameraPermission": false,
           "microphonePermission": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-video",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

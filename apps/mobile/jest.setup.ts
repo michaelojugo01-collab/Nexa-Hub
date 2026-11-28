@@ -80,7 +80,7 @@ jest.mock('expo-file-system', () => {
       return {
         offset: 0,
         size: data.byteLength,
-        readBytes(length: number) {
+        readBytesSync(length: number) {
           const chunk = data.slice(this.offset, this.offset + length);
           this.offset += chunk.byteLength;
           return chunk;

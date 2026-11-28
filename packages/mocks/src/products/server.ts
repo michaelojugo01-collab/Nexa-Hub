@@ -834,8 +834,6 @@ export class MockProductServer {
     id: string,
     uploadId: string,
     parts: CompletedPart[] | undefined,
-    /** Mock storage location of the bytes (the app's local file, so previews show them). */
-    localUri?: string,
   ) {
     const ctx = await this.own(authorization, id);
     if (ctx.error) return ctx.error;
@@ -849,7 +847,6 @@ export class MockProductServer {
     }
     const asset = ctx.product.assets.find((a) => a.id === session.assetId)!;
     asset.completedAt = this.iso();
-    if (localUri) asset.storageUri = localUri;
     if (asset.kind !== 'cover') {
       const rejectRate = this.options.rejectRate?.() ?? 0;
       this.db.outcomes[asset.id] = this.random() < rejectRate ? 'rejected' : 'ready';
@@ -858,6 +855,20 @@ export class MockProductServer {
     ctx.product.updatedAt = this.iso();
     await this.persist();
     return ok(this.assetView(asset));
+  }
+
+  /**
+   * Mock-only: point an asset at the app's local copy of the file, so the seller sees their
+   * own cover and preview clip (a real CDN would serve processed copies).
+   */
+  async attachLocalFile(productId: string, assetId: string, fileUri: string) {
+    await this.ensureLoaded();
+    const product = this.db.products[productId];
+    const asset = product?.assets.find((a) => a.id === assetId);
+    if (!product || !asset) return;
+    asset.storageUri = fileUri;
+    if (product.coverAssetId === assetId) product.coverUrl = fileUri;
+    await this.persist();
   }
 
   async abortUpload(authorization: string | undefined, id: string, uploadId: string) {

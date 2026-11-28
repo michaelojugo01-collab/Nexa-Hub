@@ -153,7 +153,6 @@ const routes = [
         params.id ?? '',
         params.uploadId ?? '',
         body.parts as never,
-        typeof body.mockLocalUri === 'string' ? body.mockLocalUri : undefined,
       ),
   ),
   route('DELETE', '/v1/products/{id}/uploads/{uploadId}', ({ products, authorization, params }) =>
