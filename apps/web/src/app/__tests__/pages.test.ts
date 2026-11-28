@@ -52,8 +52,22 @@ describe('product page', () => {
     ).toMatch(/^NEXT_REDIRECT;replace;\/adaezeprints\/adire-textile-mockups;308;/);
   });
 
+  it('opens an unlisted product by link, with noindex', async () => {
+    const meta = await productMeta(
+      p({ store: 'adaezeprints', product: 'bridal-party-pattern-set-private-clients' }),
+    );
+    expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+
+  it('public products are indexable', async () => {
+    const meta = await productMeta(p({ store: 'adaezeprints', product: 'adire-textile-mockups' }));
+    expect(meta.robots).toBeUndefined();
+  });
+
   it.each([
-    ['adaezeprints', 'asoke-pattern-pack-coming-soon'], // unpublished
+    ['adaezeprints', 'ankara-pattern-pack-2025-edition'], // unpublished (410 from the API)
+    ['studysmartabuja', 'waec-2026-leaked-questions-and-answers'], // in review
+    ['adaezeprints', 'asoke-pattern-pack-coming-soon'], // draft
     ['lensbyemeka', 'owambe-glow-lightroom-presets'], // private store
     ['adaezeprints', 'no-such-thing'],
   ])('gives 404 for %s/%s', async (store, product) => {
@@ -91,6 +105,9 @@ describe('sitemap.xml and robots.txt', () => {
     expect(urls.some((u) => u.includes('asoke-pattern-pack'))).toBe(false);
     expect(urls.some((u) => u.includes('catering-business-masterclass'))).toBe(false);
     expect(urls.some((u) => u.includes('/adaezestudio'))).toBe(false);
+    expect(urls.some((u) => u.includes('bridal-party-pattern-set'))).toBe(false); // unlisted
+    expect(urls.some((u) => u.includes('ankara-pattern-pack-2025-edition'))).toBe(false); // unpublished
+    expect(urls.some((u) => u.includes('waec-2026-leaked'))).toBe(false); // in review
   });
 
   it('robots.txt points at the sitemap', () => {

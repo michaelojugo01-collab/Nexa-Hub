@@ -38,7 +38,7 @@ jest.mock('expo-file-system', () => {
     parts
       .map((p) => (typeof p === 'string' ? p : p.uri))
       .join('/')
-      .replace(/([^:])\/{2,}/g, '$1/');
+      .replace(/([^:/])\/{2,}/g, '$1/');
   const encode = (s: string) => new TextEncoder().encode(s);
   class MockFile {
     uri: string;
