@@ -6,6 +6,6 @@ import { queryKeys } from './query-keys';
 export function useDiscoverHome() {
   return useQuery({
     queryKey: queryKeys.discoverHome,
-    queryFn: api.getDiscoverHome,
+    queryFn: () => api.getDiscoverHome(),
   });
 }

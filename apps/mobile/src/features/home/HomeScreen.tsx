@@ -123,7 +123,7 @@ export function HomeScreen() {
               return (
                 <View className="px-2 pb-4">
                   <ProductCard
-                    testID={`product-card-${item.product.id}`}
+                    testID={`product-card-${item.key}`}
                     title={item.product.title}
                     storeName={item.product.store.name}
                     priceKobo={item.product.price.amountKobo}
