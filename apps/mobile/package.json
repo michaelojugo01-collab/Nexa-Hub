@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@hookform/resolvers": "^7.0.9",
     "@nexa/api-contract": "workspace:*",
     "@nexa/ui": "workspace:*",
     "@shopify/flash-list": "~2.3.3",
