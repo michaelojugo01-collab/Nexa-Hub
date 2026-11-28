@@ -3,6 +3,15 @@
 export { discoverHome, discoverHomeEmpty } from './discover-home';
 export { meBuyer, meSeller } from './me';
 export { products } from './products';
-export { findStore, stores, toSummary } from './stores';
+export {
+  findStore,
+  fixtureFollows,
+  reservedSlugs,
+  storeRecords,
+  stores,
+  toPublicStore,
+  toSummary,
+  type StoreRecord,
+} from './stores';
 export { categories } from './categories';
 export { fixtureUsers, MOCK_OTP_CODE, reservedUsernames, takenUsernames } from './users';

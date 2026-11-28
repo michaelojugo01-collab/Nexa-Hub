@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { normaliseNigerianPhone } from './phone';
+import { slugProblem, slugProblemText } from './slug';
 
 /**
  * Client-side validation for instant feedback. The server validates everything again and
@@ -72,3 +73,36 @@ export const profileFormSchema = z.object({
 
 export type NameUsernameForm = z.infer<typeof nameUsernameSchema>;
 export type ProfileForm = z.infer<typeof profileFormSchema>;
+
+// ── Stores (F2) ──────────────────────────────────────────────────────────────
+
+export const STORE_BIO_MAX = 150;
+export const STORE_NAME_MIN = 2;
+export const STORE_NAME_MAX = 40;
+
+export const storeNameSchema = z
+  .string()
+  .trim()
+  .min(STORE_NAME_MIN, 'Enter your store’s name')
+  .max(STORE_NAME_MAX, `At most ${STORE_NAME_MAX} characters`);
+
+export const storeBioSchema = z
+  .string()
+  .trim()
+  .max(STORE_BIO_MAX, `Your bio can be up to ${STORE_BIO_MAX} characters`);
+
+export const slugSchema = z.string().superRefine((slug, ctx) => {
+  const problem = slugProblem(slug);
+  if (problem) ctx.addIssue({ code: 'custom', message: slugProblemText[problem] });
+});
+
+export const storeCategorySchema = z.string().min(1, 'Choose a category');
+
+export const storeFormSchema = z.object({
+  name: storeNameSchema,
+  slug: slugSchema,
+  categorySlug: storeCategorySchema,
+  bio: storeBioSchema,
+});
+
+export type StoreForm = z.infer<typeof storeFormSchema>;

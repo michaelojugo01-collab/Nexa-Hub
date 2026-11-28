@@ -4,7 +4,7 @@ import { products } from './products';
 import { stores, toSummary } from './stores';
 
 export const discoverHome: DiscoverHome = {
-  featuredStores: stores.filter((s) => s.verified).map(toSummary),
+  featuredStores: stores.filter((s) => s.verified && s.visibility === 'public').map(toSummary),
   trendingProducts: [...products]
     .sort((a, b) => Number(b.featured) - Number(a.featured))
     .slice(0, 8),

@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: Nexa Hub API
-  version: 0.2.0
+  version: 0.3.0
   description: |
-    Contract v0.2 — endpoints for F0 (discovery) and F1 (accounts and authentication).
+    Contract v0.3 — endpoints for F0 (discovery), F1 (accounts and authentication) and
+    F2 (stores and profiles).
     Operations marked `x-status: proposed` are not in the spec's endpoint list; see
     docs/decisions.md.
 
@@ -525,11 +526,248 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/stores:
+    post:
+      tags: [Stores]
+      operationId: createStore
+      summary: Create the signed-in seller's store
+      description: |
+        One store per seller. The server re-checks the slug (format, reserved names, taken)
+        and the uploads; the live availability check is advisory only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreCreate'
+            example:
+              name: Bisi Bakes
+              slug: bisibakes
+              bio: Small-chops and celebration cakes, Surulere.
+              categorySlug: food
+              avatarUploadId: upl_01J0AVATAR
+              bannerUploadId: null
+              visibility: public
+      responses:
+        '201':
+          description: The new store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnStore'
+        '400':
+          $ref: '#/components/responses/StoreValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotSeller'
+        '409':
+          description: The slug is taken, or the seller already has a store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                slugTaken:
+                  value:
+                    code: SLUG_TAKEN
+                    message: That link is already taken. Try another.
+                storeExists:
+                  value:
+                    code: STORE_EXISTS
+                    message: You already have a store.
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Stores]
+      operationId: updateStore
+      summary: Update the signed-in seller's store
+      description: |
+        Send only the fields that change. The slug can be changed once; the old slug then
+        answers GET /v1/stores/{slug} with `redirectTo` set to the new one. An upload id of
+        null removes that image.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreUpdate'
+            examples:
+              visibility:
+                value: { visibility: private }
+              rename:
+                value: { slug: adaezetextiles }
+      responses:
+        '200':
+          description: The updated store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnStore'
+        '400':
+          $ref: '#/components/responses/StoreValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: The seller has no store yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: NOT_FOUND
+                message: You don’t have a store yet.
+        '409':
+          description: The slug is taken, or the one allowed slug change was already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                slugTaken:
+                  value:
+                    code: SLUG_TAKEN
+                    message: That link is already taken. Try another.
+                slugChangeUsed:
+                  value:
+                    code: SLUG_CHANGE_USED
+                    message: You’ve already changed your store link once.
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/me/store:
+    get:
+      tags: [Stores]
+      operationId: getMyStore
+      summary: The signed-in seller's own store (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec lists no "my store" read. Returns the store with owner-only
+        fields, including private stores. 404 when the seller has not created one yet.
+      responses:
+        '200':
+          description: The seller's store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnStore'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: No store yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: NOT_FOUND
+                message: You don’t have a store yet.
+
+  /v1/me/store/uploads:
+    post:
+      tags: [Stores]
+      operationId: requestStoreUpload
+      summary: Pre-signed upload for a store avatar or banner (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec requires pre-signed uploads but lists no endpoint. The app PUTs
+        the file straight to `uploadUrl` with `headers` (never through the API server), then
+        sends `uploadId` in POST or PATCH /v1/stores. The server makes three resized
+        variants (small, medium, large) and returns them on the store.
+        Limits: jpeg, png or webp; avatar 5 MB, banner 10 MB.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+            example:
+              kind: banner
+              contentType: image/jpeg
+              sizeBytes: 812345
+      responses:
+        '201':
+          description: Where to upload the file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadTicket'
+              example:
+                uploadId: upl_01J0BANNER
+                uploadUrl: https://uploads.nexahub.ng/store-banners/upl_01J0BANNER?signature=abc
+                method: PUT
+                headers: { Content-Type: image/jpeg }
+                expiresAt: '2026-11-28T10:15:00Z'
+                maxBytes: 10485760
+        '400':
+          description: The file type or size is not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                tooLarge:
+                  value:
+                    code: FILE_TOO_LARGE
+                    message: Banners can be up to 10 MB.
+                typeNotAllowed:
+                  value:
+                    code: FILE_TYPE_NOT_ALLOWED
+                    message: Use a JPEG, PNG or WebP image.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/NotSeller'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/slugs/availability:
+    get:
+      tags: [Stores]
+      operationId: checkSlug
+      summary: Live store-link availability check (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec requires slug rules but lists no availability endpoint.
+        Advisory only: POST and PATCH /v1/stores re-check and can still return SLUG_TAKEN.
+        The seller's own current slug is reported as available.
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+          example: bisibakes
+      responses:
+        '200':
+          description: Availability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlugAvailability'
+              examples:
+                available:
+                  value: { slug: bisibakes, available: true, reason: null }
+                taken:
+                  value: { slug: adaezeprints, available: false, reason: taken }
+                reserved:
+                  value: { slug: admin, available: false, reason: reserved }
+                invalid:
+                  value: { slug: Bisi Bakes, available: false, reason: invalid }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
   /v1/stores/{slug}:
     get:
       tags: [Stores]
       operationId: getStore
       summary: A public store by its slug
+      description: |
+        Public read (cache at the edge for signed-out requests). When `slug` is a store's old
+        slug the store is returned with `redirectTo` set to its current slug; clients replace
+        the route. Private stores return 403 STORE_PRIVATE to everyone except the owner.
       security:
         - {}
         - bearerAuth: []
@@ -550,10 +788,80 @@ paths:
               examples:
                 default:
                   $ref: '#/components/examples/StoreAdaeze'
+                oldSlug:
+                  $ref: '#/components/examples/StoreAdaezeRedirect'
+        '403':
+          description: The store is private
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: STORE_PRIVATE
+                message: This store is private.
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /v1/stores/{id}/follow:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: str_01HZX3M1A7
+    post:
+      tags: [Stores]
+      operationId: followStore
+      summary: Follow a store
+      description: Idempotent. Owners cannot follow their own store.
+      responses:
+        '200':
+          description: The new follow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowState'
+              example:
+                storeId: str_01HZX3M1A7
+                following: true
+                followerCount: 12481
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Following your own store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: CANNOT_FOLLOW_OWN_STORE
+                message: You can’t follow your own store.
+    delete:
+      tags: [Stores]
+      operationId: unfollowStore
+      summary: Unfollow a store (proposed)
+      x-status: proposed
+      description: PROPOSED — the spec lists follow and unfollow but only POST. Idempotent.
+      responses:
+        '200':
+          description: The new follow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowState'
+              example:
+                storeId: str_01HZX3M1A7
+                following: false
+                followerCount: 12480
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /v1/products:
     get:
@@ -636,7 +944,12 @@ components:
 
     Slug:
       type: string
-      pattern: '^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$'
+      description: |
+        A store's link. 3–30 characters: lowercase letters, numbers and single hyphens,
+        starting and ending with a letter or number.
+      pattern: '^(?!.*--)[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$'
+      minLength: 3
+      maxLength: 30
       example: adaezeprints
 
     Role:
@@ -673,13 +986,17 @@ components:
       allOf:
         - $ref: '#/components/schemas/StoreSummary'
         - type: object
-          required: [bio, coverUrl, productCount, isFollowing, createdAt]
+          required:
+            [bio, coverUrl, productCount, isFollowing, createdAt, category, avatar, banner,
+             visibility, isOwner, redirectTo]
           properties:
             bio:
               type: [string, 'null']
+              maxLength: 150
             coverUrl:
               type: [string, 'null']
               format: uri
+              description: The banner's large variant (kept for F0 clients).
             productCount:
               type: integer
               minimum: 0
@@ -689,6 +1006,176 @@ components:
             createdAt:
               type: string
               format: date-time
+            category:
+              oneOf:
+                - $ref: '#/components/schemas/Category'
+                - type: 'null'
+            avatar:
+              description: Square avatar in three sizes; null when none.
+              oneOf:
+                - $ref: '#/components/schemas/ImageVariants'
+                - type: 'null'
+            banner:
+              description: Wide banner (3:1) in three sizes; null when none.
+              oneOf:
+                - $ref: '#/components/schemas/ImageVariants'
+                - type: 'null'
+            visibility:
+              $ref: '#/components/schemas/StoreVisibility'
+            isOwner:
+              type: boolean
+              description: True when the signed-in user owns this store.
+            redirectTo:
+              description: Set when the request used an old slug; the store's current slug.
+              oneOf:
+                - $ref: '#/components/schemas/Slug'
+                - type: 'null'
+
+    OwnStore:
+      description: The seller's own store, with owner-only fields.
+      allOf:
+        - $ref: '#/components/schemas/Store'
+        - type: object
+          required: [slugChangesRemaining, previousSlug]
+          properties:
+            slugChangesRemaining:
+              type: integer
+              minimum: 0
+              maximum: 1
+            previousSlug:
+              description: The old slug that redirects here, if the slug was changed.
+              oneOf:
+                - $ref: '#/components/schemas/Slug'
+                - type: 'null'
+
+    StoreVisibility:
+      type: string
+      enum: [public, private]
+      description: Private stores are hidden from discovery and their link shows "private".
+
+    ImageVariants:
+      type: object
+      required: [small, medium, large]
+      description: Server-resized copies, served from the CDN.
+      properties:
+        small:
+          type: string
+          format: uri
+        medium:
+          type: string
+          format: uri
+        large:
+          type: string
+          format: uri
+
+    StoreCreate:
+      type: object
+      required: [name, slug, categorySlug]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 40
+        slug:
+          $ref: '#/components/schemas/Slug'
+        bio:
+          type: [string, 'null']
+          maxLength: 150
+        categorySlug:
+          type: string
+        avatarUploadId:
+          type: [string, 'null']
+        bannerUploadId:
+          type: [string, 'null']
+        visibility:
+          $ref: '#/components/schemas/StoreVisibility'
+
+    StoreUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 40
+        slug:
+          $ref: '#/components/schemas/Slug'
+        bio:
+          type: [string, 'null']
+          maxLength: 150
+        categorySlug:
+          type: string
+        avatarUploadId:
+          type: [string, 'null']
+          description: A new upload id, or null to remove the avatar.
+        bannerUploadId:
+          type: [string, 'null']
+          description: A new upload id, or null to remove the banner.
+        visibility:
+          $ref: '#/components/schemas/StoreVisibility'
+
+    SlugAvailability:
+      type: object
+      required: [slug, available, reason]
+      properties:
+        slug:
+          type: string
+        available:
+          type: boolean
+        reason:
+          type: [string, 'null']
+          enum: [taken, reserved, invalid, null]
+
+    FollowState:
+      type: object
+      required: [storeId, following, followerCount]
+      properties:
+        storeId:
+          type: string
+        following:
+          type: boolean
+        followerCount:
+          type: integer
+          minimum: 0
+
+    UploadKind:
+      type: string
+      enum: [avatar, banner]
+
+    UploadRequest:
+      type: object
+      required: [kind, contentType, sizeBytes]
+      properties:
+        kind:
+          $ref: '#/components/schemas/UploadKind'
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        sizeBytes:
+          type: integer
+          minimum: 1
+
+    UploadTicket:
+      type: object
+      required: [uploadId, uploadUrl, method, headers, expiresAt, maxBytes]
+      properties:
+        uploadId:
+          type: string
+        uploadUrl:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+        maxBytes:
+          type: integer
 
     ProductSummary:
       type: object
@@ -1059,6 +1546,42 @@ components:
           example:
             code: NOT_FOUND
             message: We couldn’t find that store.
+    StoreValidationError:
+      description: A store field is invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            slugInvalid:
+              value:
+                code: SLUG_INVALID
+                message: Use 3–30 lowercase letters, numbers or hyphens.
+            slugReserved:
+              value:
+                code: SLUG_RESERVED
+                message: That link is reserved. Try another.
+            validation:
+              value:
+                code: VALIDATION_ERROR
+                message: Your bio can be up to 150 characters.
+            fileTooLarge:
+              value:
+                code: FILE_TOO_LARGE
+                message: That image is too large.
+            fileTypeNotAllowed:
+              value:
+                code: FILE_TYPE_NOT_ALLOWED
+                message: Use a JPEG, PNG or WebP image.
+    NotSeller:
+      description: The user is not a seller
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_SELLER
+            message: Start selling first to create a store.
     RateLimited:
       description: Too many requests. Retry-After says how many seconds to wait.
       headers:
@@ -1159,6 +1682,33 @@ components:
         productCount: 36
         isFollowing: false
         createdAt: '2026-10-02T09:20:00Z'
+        category: { id: cat_fashion, slug: fashion, name: Fashion & textiles }
+        avatar: null
+        banner: null
+        visibility: public
+        isOwner: false
+        redirectTo: null
+    StoreAdaezeRedirect:
+      summary: Requested with the old slug "adaezestudio"
+      value:
+        id: str_01HZX3M1A7
+        slug: adaezeprints
+        name: Adaeze Prints
+        avatarUrl: null
+        location: Yaba, Lagos
+        verified: true
+        followerCount: 12480
+        bio: Hand-drawn Ankara patterns and print-ready textile designs.
+        coverUrl: null
+        productCount: 36
+        isFollowing: false
+        createdAt: '2026-10-02T09:20:00Z'
+        category: { id: cat_fashion, slug: fashion, name: Fashion & textiles }
+        avatar: null
+        banner: null
+        visibility: public
+        isOwner: false
+        redirectTo: adaezeprints
     ProductPageFirst:
       value:
         data:

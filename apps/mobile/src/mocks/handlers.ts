@@ -2,7 +2,8 @@ import type { ApiErrorBody } from '@nexa/api-contract';
 
 import type { MockServerOptions } from './auth/server';
 import { MockAuthServer } from './auth/server';
-import { categories, discoverHome, discoverHomeEmpty, findStore, products } from './fixtures';
+import type { MockStoreServer } from './stores/server';
+import { categories, discoverHome, discoverHomeEmpty, products } from './fixtures';
 
 export type MockScenario = 'default' | 'empty';
 
@@ -18,6 +19,7 @@ type Ctx = {
   authorization: string | undefined;
   flags: MockFlags;
   server: MockAuthServer;
+  stores: MockStoreServer;
 };
 
 type Handler = (ctx: Ctx) => MockResponse | Promise<MockResponse>;
@@ -94,21 +96,41 @@ const routes = [
   route('GET', '/v1/discover/categories', ({ query, scenario }) =>
     paginate(scenario === 'empty' ? [] : categories, query, 50),
   ),
-  route('GET', '/v1/stores/{slug}', ({ params }) => {
-    const store = findStore(params.slug ?? '');
-    return store
-      ? ok(store)
-      : error(404, { code: 'NOT_FOUND', message: 'We couldn’t find that store.' });
-  }),
-  route('GET', '/v1/products', ({ query, scenario }) => {
-    const storeSlug = query.get('storeSlug');
-    if (storeSlug && !findStore(storeSlug)) {
-      return error(404, { code: 'NOT_FOUND', message: 'We couldn’t find that store.' });
+  route('GET', '/v1/products', async ({ query, scenario, stores, authorization }) => {
+    let storeSlug = query.get('storeSlug');
+    if (storeSlug) {
+      const found = await stores.productStore(authorization, storeSlug);
+      if (found.error) return found.error;
+      storeSlug = found.slug;
     }
     const all =
       scenario === 'empty' ? [] : products.filter((p) => !storeSlug || p.store.slug === storeSlug);
     return paginate(all, query, 20);
   }),
+
+  // Stores (F2). The literal paths come before /v1/stores/{slug}.
+  route('POST', '/v1/stores', ({ stores, authorization, body }) =>
+    stores.createStore(authorization, body as never),
+  ),
+  route('PATCH', '/v1/stores', ({ stores, authorization, body }) =>
+    stores.updateStore(authorization, body),
+  ),
+  route('GET', '/v1/me/store', ({ stores, authorization }) => stores.getMyStore(authorization)),
+  route('POST', '/v1/me/store/uploads', ({ stores, authorization, body }) =>
+    stores.requestUpload(authorization, body as never),
+  ),
+  route('GET', '/v1/slugs/availability', ({ stores, authorization, query }) =>
+    stores.checkSlug(authorization, query.get('slug') ?? ''),
+  ),
+  route('GET', '/v1/stores/{slug}', ({ stores, authorization, params }) =>
+    stores.getStore(authorization, params.slug ?? ''),
+  ),
+  route('POST', '/v1/stores/{id}/follow', ({ stores, authorization, params }) =>
+    stores.follow(authorization, params.id ?? ''),
+  ),
+  route('DELETE', '/v1/stores/{id}/follow', ({ stores, authorization, params }) =>
+    stores.unfollow(authorization, params.id ?? ''),
+  ),
 ];
 
 /**
@@ -137,7 +159,12 @@ export type MockRequest = {
 /** Finds the handler for a request and runs it. Unknown routes return 404 like the real API. */
 export async function handleMockRequest(
   request: MockRequest,
-  options: { server: MockAuthServer; scenario?: MockScenario; flags?: MockFlags },
+  options: {
+    server: MockAuthServer;
+    stores: MockStoreServer;
+    scenario?: MockScenario;
+    flags?: MockFlags;
+  },
 ): Promise<MockResponse> {
   const { pathname, query } = parseUrl(request.url);
   for (const r of routes) {
@@ -155,6 +182,7 @@ export async function handleMockRequest(
       authorization: request.authorization,
       flags: options.flags ?? { smsDown: false, rateLimited: false },
       server: options.server,
+      stores: options.stores,
     });
   }
   return error(404, { code: 'NOT_FOUND', message: `No mock for ${request.method} ${pathname}` });

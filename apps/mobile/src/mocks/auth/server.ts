@@ -140,11 +140,29 @@ export class MockAuthServer {
       .catch(() => logger.warn('Mock DB could not be saved'));
   }
 
+  private resetListeners: (() => Promise<void>)[] = [];
+
+  /** Other mock services (stores) reset with the auth server. */
+  onReset(listener: () => Promise<void>) {
+    this.resetListeners.push(listener);
+  }
+
   async reset() {
     this.db = freshDb();
     this.challenges.clear();
     this.loaded = Promise.resolve();
     await this.options.persistence.clear();
+    await Promise.all(this.resetListeners.map((l) => l()));
+  }
+
+  /** For other mock services: the signed-in user record (mutable), or the 401 to send. */
+  resolveUser(authorization: string | undefined) {
+    return this.authenticate(authorization);
+  }
+
+  /** For other mock services: save after changing a user record from resolveUser. */
+  saveUsers() {
+    return this.persist();
   }
 
   private id(prefix: string) {

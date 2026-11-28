@@ -245,6 +245,100 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/stores': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create the signed-in seller's store
+     * @description One store per seller. The server re-checks the slug (format, reserved names, taken)
+     *     and the uploads; the live availability check is advisory only.
+     */
+    post: operations['createStore'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update the signed-in seller's store
+     * @description Send only the fields that change. The slug can be changed once; the old slug then
+     *     answers GET /v1/stores/{slug} with `redirectTo` set to the new one. An upload id of
+     *     null removes that image.
+     */
+    patch: operations['updateStore'];
+    trace?: never;
+  };
+  '/v1/me/store': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The signed-in seller's own store (proposed)
+     * @description PROPOSED — the spec lists no "my store" read. Returns the store with owner-only
+     *     fields, including private stores. 404 when the seller has not created one yet.
+     */
+    get: operations['getMyStore'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/me/store/uploads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Pre-signed upload for a store avatar or banner (proposed)
+     * @description PROPOSED — the spec requires pre-signed uploads but lists no endpoint. The app PUTs
+     *     the file straight to `uploadUrl` with `headers` (never through the API server), then
+     *     sends `uploadId` in POST or PATCH /v1/stores. The server makes three resized
+     *     variants (small, medium, large) and returns them on the store.
+     *     Limits: jpeg, png or webp; avatar 5 MB, banner 10 MB.
+     */
+    post: operations['requestStoreUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/slugs/availability': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Live store-link availability check (proposed)
+     * @description PROPOSED — the spec requires slug rules but lists no availability endpoint.
+     *     Advisory only: POST and PATCH /v1/stores re-check and can still return SLUG_TAKEN.
+     *     The seller's own current slug is reported as available.
+     */
+    get: operations['checkSlug'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v1/stores/{slug}': {
     parameters: {
       query?: never;
@@ -252,11 +346,43 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** A public store by its slug */
+    /**
+     * A public store by its slug
+     * @description Public read (cache at the edge for signed-out requests). When `slug` is a store's old
+     *     slug the store is returned with `redirectTo` set to its current slug; clients replace
+     *     the route. Private stores return 403 STORE_PRIVATE to everyone except the owner.
+     */
     get: operations['getStore'];
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/stores/{id}/follow': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @example str_01HZX3M1A7 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Follow a store
+     * @description Idempotent. Owners cannot follow their own store.
+     */
+    post: operations['followStore'];
+    /**
+     * Unfollow a store (proposed)
+     * @description PROPOSED — the spec lists follow and unfollow but only POST. Idempotent.
+     */
+    delete: operations['unfollowStore'];
     options?: never;
     head?: never;
     patch?: never;
@@ -299,7 +425,11 @@ export interface components {
       /** @enum {string} */
       currency: 'NGN';
     };
-    /** @example adaezeprints */
+    /**
+     * @description A store's link. 3–30 characters: lowercase letters, numbers and single hyphens,
+     *     starting and ending with a letter or number.
+     * @example adaezeprints
+     */
     Slug: string;
     /** @enum {string} */
     Role: 'buyer' | 'seller' | 'ambassador';
@@ -318,13 +448,98 @@ export interface components {
     };
     Store: components['schemas']['StoreSummary'] & {
       bio: string | null;
-      /** Format: uri */
+      /**
+       * Format: uri
+       * @description The banner's large variant (kept for F0 clients).
+       */
       coverUrl: string | null;
       productCount: number;
       /** @description Always false when signed out. */
       isFollowing: boolean;
       /** Format: date-time */
       createdAt: string;
+      category: components['schemas']['Category'] | null;
+      /** @description Square avatar in three sizes; null when none. */
+      avatar: components['schemas']['ImageVariants'] | null;
+      /** @description Wide banner (3:1) in three sizes; null when none. */
+      banner: components['schemas']['ImageVariants'] | null;
+      visibility: components['schemas']['StoreVisibility'];
+      /** @description True when the signed-in user owns this store. */
+      isOwner: boolean;
+      /** @description Set when the request used an old slug; the store's current slug. */
+      redirectTo: components['schemas']['Slug'] | null;
+    };
+    /** @description The seller's own store, with owner-only fields. */
+    OwnStore: components['schemas']['Store'] & {
+      slugChangesRemaining: number;
+      /** @description The old slug that redirects here, if the slug was changed. */
+      previousSlug: components['schemas']['Slug'] | null;
+    };
+    /**
+     * @description Private stores are hidden from discovery and their link shows "private".
+     * @enum {string}
+     */
+    StoreVisibility: 'public' | 'private';
+    /** @description Server-resized copies, served from the CDN. */
+    ImageVariants: {
+      /** Format: uri */
+      small: string;
+      /** Format: uri */
+      medium: string;
+      /** Format: uri */
+      large: string;
+    };
+    StoreCreate: {
+      name: string;
+      slug: components['schemas']['Slug'];
+      bio?: string | null;
+      categorySlug: string;
+      avatarUploadId?: string | null;
+      bannerUploadId?: string | null;
+      visibility?: components['schemas']['StoreVisibility'];
+    };
+    StoreUpdate: {
+      name?: string;
+      slug?: components['schemas']['Slug'];
+      bio?: string | null;
+      categorySlug?: string;
+      /** @description A new upload id, or null to remove the avatar. */
+      avatarUploadId?: string | null;
+      /** @description A new upload id, or null to remove the banner. */
+      bannerUploadId?: string | null;
+      visibility?: components['schemas']['StoreVisibility'];
+    };
+    SlugAvailability: {
+      slug: string;
+      available: boolean;
+      /** @enum {string|null} */
+      reason: 'taken' | 'reserved' | 'invalid' | null;
+    };
+    FollowState: {
+      storeId: string;
+      following: boolean;
+      followerCount: number;
+    };
+    /** @enum {string} */
+    UploadKind: 'avatar' | 'banner';
+    UploadRequest: {
+      kind: components['schemas']['UploadKind'];
+      /** @enum {string} */
+      contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+      sizeBytes: number;
+    };
+    UploadTicket: {
+      uploadId: string;
+      /** Format: uri */
+      uploadUrl: string;
+      /** @enum {string} */
+      method: 'PUT';
+      headers: {
+        [key: string]: string;
+      };
+      /** Format: date-time */
+      expiresAt: string;
+      maxBytes: number;
     };
     ProductSummary: {
       id: string;
@@ -511,6 +726,30 @@ export interface components {
          * @example {
          *       "code": "NOT_FOUND",
          *       "message": "We couldn’t find that store."
+         *     }
+         */
+        'application/json': components['schemas']['Error'];
+      };
+    };
+    /** @description A store field is invalid */
+    StoreValidationError: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['Error'];
+      };
+    };
+    /** @description The user is not a seller */
+    NotSeller: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "code": "NOT_SELLER",
+         *       "message": "Start selling first to create a store."
          *     }
          */
         'application/json': components['schemas']['Error'];
@@ -1042,6 +1281,221 @@ export interface operations {
       500: components['responses']['InternalError'];
     };
   };
+  createStore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "name": "Bisi Bakes",
+         *       "slug": "bisibakes",
+         *       "bio": "Small-chops and celebration cakes, Surulere.",
+         *       "categorySlug": "food",
+         *       "avatarUploadId": "upl_01J0AVATAR",
+         *       "bannerUploadId": null,
+         *       "visibility": "public"
+         *     }
+         */
+        'application/json': components['schemas']['StoreCreate'];
+      };
+    };
+    responses: {
+      /** @description The new store */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnStore'];
+        };
+      };
+      400: components['responses']['StoreValidationError'];
+      401: components['responses']['Unauthenticated'];
+      403: components['responses']['NotSeller'];
+      /** @description The slug is taken, or the seller already has a store */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      500: components['responses']['InternalError'];
+    };
+  };
+  updateStore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StoreUpdate'];
+      };
+    };
+    responses: {
+      /** @description The updated store */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnStore'];
+        };
+      };
+      400: components['responses']['StoreValidationError'];
+      401: components['responses']['Unauthenticated'];
+      /** @description The seller has no store yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "NOT_FOUND",
+           *       "message": "You don’t have a store yet."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      /** @description The slug is taken, or the one allowed slug change was already used */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      500: components['responses']['InternalError'];
+    };
+  };
+  getMyStore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The seller's store */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OwnStore'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      /** @description No store yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "NOT_FOUND",
+           *       "message": "You don’t have a store yet."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  requestStoreUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "kind": "banner",
+         *       "contentType": "image/jpeg",
+         *       "sizeBytes": 812345
+         *     }
+         */
+        'application/json': components['schemas']['UploadRequest'];
+      };
+    };
+    responses: {
+      /** @description Where to upload the file */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "uploadId": "upl_01J0BANNER",
+           *       "uploadUrl": "https://uploads.nexahub.ng/store-banners/upl_01J0BANNER?signature=abc",
+           *       "method": "PUT",
+           *       "headers": {
+           *         "Content-Type": "image/jpeg"
+           *       },
+           *       "expiresAt": "2026-11-28T10:15:00Z",
+           *       "maxBytes": 10485760
+           *     }
+           */
+          'application/json': components['schemas']['UploadTicket'];
+        };
+      };
+      /** @description The file type or size is not allowed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      403: components['responses']['NotSeller'];
+      429: components['responses']['RateLimited'];
+    };
+  };
+  checkSlug: {
+    parameters: {
+      query: {
+        /** @example bisibakes */
+        slug: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Availability */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SlugAvailability'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      429: components['responses']['RateLimited'];
+    };
+  };
   getStore: {
     parameters: {
       query?: never;
@@ -1063,8 +1517,102 @@ export interface operations {
           'application/json': components['schemas']['Store'];
         };
       };
+      /** @description The store is private */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "STORE_PRIVATE",
+           *       "message": "This store is private."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
       404: components['responses']['NotFound'];
       500: components['responses']['InternalError'];
+    };
+  };
+  followStore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @example str_01HZX3M1A7 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The new follow state */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "storeId": "str_01HZX3M1A7",
+           *       "following": true,
+           *       "followerCount": 12481
+           *     }
+           */
+          'application/json': components['schemas']['FollowState'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      404: components['responses']['NotFound'];
+      /** @description Following your own store */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "CANNOT_FOLLOW_OWN_STORE",
+           *       "message": "You can’t follow your own store."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  unfollowStore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @example str_01HZX3M1A7 */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The new follow state */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "storeId": "str_01HZX3M1A7",
+           *       "following": false,
+           *       "followerCount": 12480
+           *     }
+           */
+          'application/json': components['schemas']['FollowState'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      404: components['responses']['NotFound'];
     };
   };
   listProducts: {

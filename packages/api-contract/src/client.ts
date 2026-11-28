@@ -8,6 +8,16 @@ export type MeUpdate = Schemas['MeUpdate'];
 export type Role = Schemas['Role'];
 export type StoreSummary = Schemas['StoreSummary'];
 export type Store = Schemas['Store'];
+export type OwnStore = Schemas['OwnStore'];
+export type StoreVisibility = Schemas['StoreVisibility'];
+export type StoreCreate = Schemas['StoreCreate'];
+export type StoreUpdate = Schemas['StoreUpdate'];
+export type ImageVariants = Schemas['ImageVariants'];
+export type SlugAvailability = Schemas['SlugAvailability'];
+export type FollowState = Schemas['FollowState'];
+export type UploadKind = Schemas['UploadKind'];
+export type UploadRequest = Schemas['UploadRequest'];
+export type UploadTicket = Schemas['UploadTicket'];
 export type ProductSummary = Schemas['ProductSummary'];
 export type ProductType = Schemas['ProductType'];
 export type ProductPage = Schemas['ProductPage'];
@@ -225,7 +235,21 @@ export function createApiClient(options: ApiClientOptions) {
     getDiscoverHome: () => request<DiscoverHome>('GET', '/v1/discover/home'),
     listCategories: (query: ListCategoriesQuery = {}) =>
       request<CategoryPage>('GET', '/v1/discover/categories', { query }),
+
+    // Stores
     getStore: (slug: string) => request<Store>('GET', `/v1/stores/${encodeURIComponent(slug)}`),
+    getMyStore: () => request<OwnStore>('GET', '/v1/me/store'),
+    createStore: (body: StoreCreate) => request<OwnStore>('POST', '/v1/stores', { body }),
+    updateStore: (body: StoreUpdate) => request<OwnStore>('PATCH', '/v1/stores', { body }),
+    checkSlug: (slug: string) =>
+      request<SlugAvailability>('GET', '/v1/slugs/availability', { query: { slug } }),
+    requestStoreUpload: (body: UploadRequest) =>
+      request<UploadTicket>('POST', '/v1/me/store/uploads', { body }),
+    followStore: (storeId: string) =>
+      request<FollowState>('POST', `/v1/stores/${encodeURIComponent(storeId)}/follow`),
+    unfollowStore: (storeId: string) =>
+      request<FollowState>('DELETE', `/v1/stores/${encodeURIComponent(storeId)}/follow`),
+
     listProducts: (query: ListProductsQuery = {}) =>
       request<ProductPage>('GET', '/v1/products', { query }),
   };

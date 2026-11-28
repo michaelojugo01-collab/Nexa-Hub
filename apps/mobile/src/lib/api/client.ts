@@ -4,9 +4,10 @@ import { secureStorage } from '@/lib/auth/secure-storage';
 import { signOutLocally } from '@/lib/auth/sign-out';
 import { config } from '@/lib/config';
 import { MockAuthServer } from '@/mocks/auth/server';
-import { secureStorePersistence } from '@/mocks/auth/persistence';
+import { secureStorePersistence, storesSecureStorePersistence } from '@/mocks/auth/persistence';
 import { useMockControl } from '@/mocks/mock-control';
 import { createMockFetch } from '@/mocks/mock-fetch';
+import { MockStoreServer } from '@/mocks/stores/server';
 import { useAuthStore } from '@/stores/auth-store';
 
 /** The fake backend used in mock mode. Its state survives restarts (mock-only storage key). */
@@ -17,12 +18,18 @@ export const mockServer = config.useMocks
     })
   : null;
 
+/** The fake stores backend (F2). Resets together with `mockServer`. */
+export const mockStores = mockServer
+  ? new MockStoreServer({ auth: mockServer, persistence: storesSecureStorePersistence })
+  : null;
+
 const transport: FetchLike | undefined = mockServer
   ? createMockFetch({
       delayMs: config.mockDelayMs,
       failureRate: config.mockFailureRate,
       scenario: config.mockScenario,
       server: mockServer,
+      stores: mockStores ?? undefined,
       getFlags: () => useMockControl.getState(),
     })
   : undefined;
