@@ -18,6 +18,9 @@ export function createQueryClient() {
   });
 }
 
+/** The app's single QueryClient (cleared on sign-out). */
+export const queryClient = createQueryClient();
+
 let wired = false;
 
 /** Connects TanStack Query to the device's network and app-foreground state. Call once. */

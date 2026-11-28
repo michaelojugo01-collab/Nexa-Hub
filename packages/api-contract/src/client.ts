@@ -184,9 +184,9 @@ export function createApiClient(options: ApiClientOptions) {
     const token = useAuth ? ((await auth.getAccessToken()) ?? null) : null;
     const response = await send(method, path, opts, token);
 
-    if (response.status !== 401 || !useAuth || !token) return parse<T>(response);
+    if (response.status !== 401 || !useAuth) return parse<T>(response);
 
-    // 401 with a token: refresh once, then retry once.
+    // 401: refresh once (shared by concurrent requests), then retry once.
     const fresh = await refreshOnce(); // network errors propagate; session is kept
     if (!fresh) {
       auth.onSessionEnded();
