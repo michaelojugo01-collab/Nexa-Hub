@@ -1,3 +1,3 @@
-import { ProductPlaceholderScreen } from '@/features/links/ProductPlaceholderScreen';
+import { ProductScreen } from '@/features/products/ProductScreen';
 
-export default ProductPlaceholderScreen;
+export default ProductScreen;

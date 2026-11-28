@@ -303,6 +303,9 @@ export class MockProductServer {
       linkUrl: product.linkUrl,
       previewPages: product.previewPages,
       assets: product.assets.map((a) => this.assetView(a)),
+      mainAssetId: product.mainAssetId,
+      coverAssetId: product.coverAssetId,
+      previewAssetId: product.previewAssetId,
       preview: this.preview(product, type),
       rightsDeclaredAt: product.rightsDeclaredAt,
       salesCount: product.salesCount,
@@ -560,6 +563,9 @@ export class MockProductServer {
     ) {
       return err(400, 'VALIDATION_ERROR', 'Show 0 to 5 preview pages.');
     }
+    if (body.visibility !== undefined && body.visibility !== 'public' && body.visibility !== 'unlisted') {
+      return err(400, 'VALIDATION_ERROR', 'Visibility is public or unlisted.');
+    }
     const asset = (assetId: string | null | undefined, kind: AssetRecord['kind']) =>
       assetId ? product.assets.find((a) => a.id === assetId && a.kind === kind) : undefined;
     if (body.coverAssetId !== undefined) {
@@ -600,6 +606,7 @@ export class MockProductServer {
       product.mainAssetId = body.mainAssetId;
     }
     if (body.previewAssetId !== undefined) product.previewAssetId = body.previewAssetId;
+    if (body.visibility !== undefined) product.visibility = body.visibility;
     if (body.rightsDeclared !== undefined) {
       // The server records when; the app only sends the tick.
       product.rightsDeclaredAt = body.rightsDeclared

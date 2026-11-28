@@ -32,17 +32,17 @@ describe('screens opened from web links', () => {
     expect(router.getPathname()).toBe('/store/jollofacademy');
   });
 
-  it('opens a product link on the (placeholder) product screen', async () => {
+  it('opens a product link on the product screen', async () => {
     const router = await openLink(
       'https://nexahub.app/adaezeprints/ankara-print-pattern-pack-40-designs',
     );
     expect(await screen.findByText('Ankara Print Pattern Pack (40 designs)')).toBeOnTheScreen();
     expect(screen.getByText('₦4,500')).toBeOnTheScreen();
-    expect(screen.getByTestId('product-visit-store')).toBeOnTheScreen();
+    expect(screen.getByTestId('product-view-store')).toHaveTextContent(/Adaeze Prints/);
     expect(router.getPathname()).toBe('/product/adaezeprints/ankara-print-pattern-pack-40-designs');
   });
 
-  it('shows not found for an unpublished product', async () => {
+  it('shows not found for a draft product', async () => {
     await openLink('https://nexahub.app/adaezeprints/asoke-pattern-pack-coming-soon');
     expect(await screen.findByTestId('product-not-found')).toBeOnTheScreen();
   });

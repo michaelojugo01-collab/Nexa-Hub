@@ -874,6 +874,10 @@ export interface components {
       /** @description PDF types; how many sample pages to show. */
       previewPages: number;
       assets: components['schemas']['ProductAsset'][];
+      /** @description The file buyers get (null for links or before the first upload). */
+      mainAssetId: string | null;
+      coverAssetId: string | null;
+      previewAssetId: string | null;
       preview: components['schemas']['ProductPreview'];
       /**
        * Format: date-time
@@ -918,6 +922,7 @@ export interface components {
       previewAssetId?: string | null;
       /** @description true records the declaration time on the server. */
       rightsDeclared?: boolean;
+      visibility?: components['schemas']['ProductVisibility'];
     };
     PublishRequest: {
       visibility: components['schemas']['ProductVisibility'];

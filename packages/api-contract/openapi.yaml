@@ -1769,6 +1769,9 @@ components:
           linkUrl,
           previewPages,
           assets,
+          mainAssetId,
+          coverAssetId,
+          previewAssetId,
           preview,
           rightsDeclaredAt,
           salesCount,
@@ -1825,6 +1828,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductAsset'
+        mainAssetId:
+          type: [string, 'null']
+          description: The file buyers get (null for links or before the first upload).
+        coverAssetId:
+          type: [string, 'null']
+        previewAssetId:
+          type: [string, 'null']
         preview:
           $ref: '#/components/schemas/ProductPreview'
         rightsDeclaredAt:
@@ -1914,6 +1924,8 @@ components:
         rightsDeclared:
           type: boolean
           description: true records the declaration time on the server.
+        visibility:
+          $ref: '#/components/schemas/ProductVisibility'
 
     PublishRequest:
       type: object

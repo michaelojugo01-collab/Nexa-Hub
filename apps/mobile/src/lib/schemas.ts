@@ -1,4 +1,14 @@
-import { STORE_BIO_MAX, STORE_NAME_MAX, STORE_NAME_MIN } from '@nexa/api-contract';
+import {
+  isValidProductLink,
+  PRODUCT_DESCRIPTION_MAX,
+  PRODUCT_MIN_PRICE_KOBO,
+  PRODUCT_TAGS_MAX,
+  PRODUCT_TITLE_MAX,
+  STORE_BIO_MAX,
+  STORE_NAME_MAX,
+  STORE_NAME_MIN,
+} from '@nexa/api-contract';
+import { parseNairaToKobo } from '@nexa/ui';
 import { z } from 'zod';
 
 import { normaliseNigerianPhone } from './phone';
@@ -105,3 +115,56 @@ export const storeFormSchema = z.object({
 });
 
 export type StoreForm = z.infer<typeof storeFormSchema>;
+
+// ── Products (F4) ────────────────────────────────────────────────────────────
+
+export {
+  PRODUCT_DESCRIPTION_MAX,
+  PRODUCT_MIN_PRICE_KOBO,
+  PRODUCT_TAGS_MAX,
+  PRODUCT_TITLE_MAX,
+} from '@nexa/api-contract';
+
+export const productTitleSchema = z
+  .string()
+  .trim()
+  .min(1, 'Add a title')
+  .max(PRODUCT_TITLE_MAX, `At most ${PRODUCT_TITLE_MAX} characters`);
+
+export const productDescriptionSchema = z
+  .string()
+  .trim()
+  .max(PRODUCT_DESCRIPTION_MAX, `At most ${PRODUCT_DESCRIPTION_MAX} characters`);
+
+/** The price field: what the seller types in naira, checked and turned into kobo. */
+export const priceNairaSchema = z.string().transform((value, ctx) => {
+  const kobo = parseNairaToKobo(value);
+  if (kobo === null) {
+    ctx.addIssue({ code: 'custom', message: 'Enter a price in naira, like 1500 or 1,500.50' });
+    return z.NEVER;
+  }
+  if (kobo < PRODUCT_MIN_PRICE_KOBO) {
+    ctx.addIssue({ code: 'custom', message: 'The minimum price is ₦100' });
+    return z.NEVER;
+  }
+  return kobo;
+});
+
+export const productTagsSchema = z
+  .array(z.string().trim().min(1).max(30))
+  .max(PRODUCT_TAGS_MAX, `Up to ${PRODUCT_TAGS_MAX} tags`);
+
+export const productLinkSchema = z
+  .string()
+  .trim()
+  .refine(isValidProductLink, 'Enter a full link starting with https://');
+
+export const productDetailsSchema = z.object({
+  title: productTitleSchema,
+  description: productDescriptionSchema,
+  categorySlug: z.string().min(1, 'Choose a category'),
+  tags: productTagsSchema,
+  price: priceNairaSchema,
+});
+
+export type ProductDetailsInput = z.input<typeof productDetailsSchema>;

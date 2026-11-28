@@ -17,19 +17,3 @@ export function PayoutsPlaceholderScreen() {
     </Screen>
   );
 }
-
-/** Products are module F4. */
-export function NewProductPlaceholderScreen() {
-  return (
-    <Screen testID="new-product-placeholder">
-      <EmptyState
-        className="flex-1"
-        icon="pricetag-outline"
-        title="Adding products is coming soon"
-        description="Digital downloads, courses, services and physical products arrive in the next update."
-        actionLabel="Back"
-        onAction={() => router.back()}
-      />
-    </Screen>
-  );
-}

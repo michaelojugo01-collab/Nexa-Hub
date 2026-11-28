@@ -106,3 +106,16 @@ jest.mock('expo-file-system', () => {
     Paths: { document: { uri: 'file:///docs' }, cache: { uri: 'file:///cache' } },
   };
 });
+
+// Media players and the document picker are native: simple stand-ins in Jest.
+jest.mock('expo-video', () => ({
+  VideoView: () => null,
+  useVideoPlayer: () => ({ play: jest.fn(), pause: jest.fn(), loop: false }),
+}));
+jest.mock('expo-audio', () => ({
+  useAudioPlayer: () => ({ play: jest.fn(), pause: jest.fn() }),
+  useAudioPlayerStatus: () => ({ playing: false, currentTime: 0, duration: 30 }),
+}));
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+}));

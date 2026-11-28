@@ -44,3 +44,23 @@ export function speakKobo(amountKobo: number): string {
   const nairaPart = `${groupThousands(String(naira))} naira`;
   return kobo === 0 ? `${sign}${nairaPart}` : `${sign}${nairaPart} ${kobo} kobo`;
 }
+
+/**
+ * What a seller types as a naira price → integer kobo, with string maths (no floating point):
+ * "1,500.50" → 150050, "₦2,000" → 200000, "0.1" → 10. Returns null for anything that isn't a
+ * plain non-negative naira amount with at most 2 decimals ("1e3", "12.345", "-5", "abc").
+ */
+export function parseNairaToKobo(input: string): number | null {
+  const cleaned = input.trim().replace(/^₦\s*/, '').replace(/^NGN\s*/i, '');
+  if (!/^(\d{1,3}(,\d{3})+|\d+)(\.\d{0,2})?$/.test(cleaned)) return null;
+  const [whole = '0', fraction = ''] = cleaned.replace(/,/g, '').split('.');
+  const kobo = Number(whole) * 100 + Number(fraction.padEnd(2, '0') || '0');
+  return Number.isSafeInteger(kobo) ? kobo : null;
+}
+
+/** Kobo → what goes back into a price field: 150050 → "1500.50", 200000 → "2000". */
+export function koboToNairaInput(amountKobo: number): string {
+  const naira = Math.floor(amountKobo / 100);
+  const kobo = amountKobo % 100;
+  return kobo === 0 ? String(naira) : `${naira}.${String(kobo).padStart(2, '0')}`;
+}

@@ -26,9 +26,10 @@ export type PreparedImage = {
 export async function prepareImage(
   uri: string,
   crop: CropRect,
-  kind: UploadKind,
+  /** A store image kind, or an explicit output size (product covers: 1200×900). */
+  kind: UploadKind | { width: number; height: number },
 ): Promise<PreparedImage> {
-  const target = outputSize[kind];
+  const target = typeof kind === 'string' ? outputSize[kind] : kind;
   const context = ImageManipulator.manipulate(uri).crop(crop);
   // Never upscale a small crop.
   if (crop.width > target.width) context.resize({ width: target.width });

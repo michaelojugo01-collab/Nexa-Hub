@@ -344,7 +344,7 @@ function StoreBody({ store, asBuyer }: { store: Store; asBuyer: boolean }) {
                     owner ? 'Add your first product to start selling.' : 'Check back soon.'
                   }
                   actionLabel={owner && tab === 'products' ? 'Add product' : undefined}
-                  onAction={owner ? () => router.push('/seller/new-product') : undefined}
+                  onAction={owner ? () => router.push('/seller/products/new') : undefined}
                   testID="store-products-empty"
                 />
               );

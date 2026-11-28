@@ -48,6 +48,10 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="account" />
               <Stack.Screen name="seller" />
+              <Stack.Screen
+                name="checkout/[productId]"
+                options={{ headerShown: true, title: 'Checkout' }}
+              />
             </Stack.Protected>
             {/* Public pages from links: open signed out too, but not in the middle of onboarding. */}
             <Stack.Protected guard={!(signedIn && onboarding)}>

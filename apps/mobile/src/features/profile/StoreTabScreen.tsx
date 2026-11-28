@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 
 import { Badge, EmptyState, ErrorState, Screen, Skeleton } from '@/components';
 import { errorMessage, isOfflineError } from '@/lib/api/error-message';
-import { StoreDashboard } from '@/features/stores/StoreDashboard';
+import { SellerStoreHome } from '@/features/products/SellerStoreHome';
 import { useMyStore } from '@/features/stores/use-my-store';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -20,6 +20,9 @@ export function StoreTabScreen() {
   const [sheet, setSheet] = useState(false);
   const seller = isSeller(user);
   const myStore = useMyStore(seller);
+
+  // A seller with a store: dashboard and products in one scrolling list.
+  if (seller && myStore.data) return <SellerStoreHome store={myStore.data} />;
 
   return (
     <Screen testID="store-screen" scroll>
@@ -53,8 +56,6 @@ export function StoreTabScreen() {
           retrying={myStore.isFetching}
           testID="store-error"
         />
-      ) : myStore.data ? (
-        <StoreDashboard store={myStore.data} />
       ) : (
         <EmptyState
           icon="storefront-outline"

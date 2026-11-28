@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Switch, Text, View } from 'react-native';
 
-import { Button, Card, EmptyState, StoreHeader } from '@/components';
+import { Button, Card, StoreHeader } from '@/components';
 import { errorMessage, isOfflineError } from '@/lib/api/error-message';
 import { storeLinkLabel } from '@/lib/store-links';
 import { toast } from '@/stores/toast-store';
@@ -125,20 +125,6 @@ export function StoreDashboard({ store }: Props) {
             : 'Private: only you can see your store. Your link shows “This store is private”, and the store is hidden from search and Discover. Nothing is deleted.'}
         </Text>
       </Card>
-
-      {store.productCount === 0 ? (
-        <Card>
-          <EmptyState
-            icon="pricetag-outline"
-            title="Add your first product"
-            description="Sell digital downloads, courses, services or physical items."
-            actionLabel="Add product"
-            onAction={() => router.push('/seller/new-product')}
-            className="py-4"
-            testID="dashboard-products-empty"
-          />
-        </Card>
-      ) : null}
 
       <ShareStoreSheet visible={sharing} onClose={() => setSharing(false)} store={store} />
     </View>
