@@ -2,6 +2,59 @@
 
 Newest first. Each entry: what was decided, why, and what would change it.
 
+## 2026-11-28 — F1 Accounts and authentication (front end)
+
+1. **Proposed endpoints** (not in the spec's list; marked `x-status: proposed` in
+   `openapi.yaml`, backend to confirm):
+   - `GET /v1/usernames/availability?username=` → `{ username, available, reason }`,
+     reason `taken | reserved | invalid`. Advisory; `PATCH /v1/me` re-checks.
+   - `POST /v1/me/email/verification` → 202 `{ sentTo }` (re-send the link).
+   - `DELETE /v1/me` with `{ confirmation: "DELETE" }` → 202 `{ deactivatedAt, deletesAt }`.
+   - `POST` and `GET /v1/me/data-export` → `{ status: none|requested|ready, requestedAt }`.
+2. **Account deletion (approved):** deactivate and sign out everywhere now, delete
+   permanently after 30 days, signing in within 30 days cancels; records the law requires
+   (orders, ledger) are kept. Final wording needs a lawyer (F13).
+3. **Interest tags come from `GET /v1/discover/categories`** (approved; already in the spec's
+   discovery group). `Me.interests` holds up to 3 category slugs.
+4. **OTP shape:** `/otp/request` returns a `challengeId` (plus masked `sentTo`, `expiresAt`,
+   `resendAvailableAt`); `/otp/verify` takes `{ challengeId, code, deviceId }`. Requesting a
+   new code invalidates the old one; the 60-second cooldown is per destination, so switching
+   SMS → WhatsApp also waits for it. Remaining attempts are in the error `message` (the error
+   object stays `{ code, message }`).
+5. **Tokens:** 401 `ACCESS_TOKEN_EXPIRED` triggers one shared refresh and one retry; any
+   refused refresh signs out; a refresh that fails for network reasons keeps the session.
+   Refresh tokens are device-bound (random per-install `deviceId` in secure storage) and
+   rotate; reusing an old one revokes all sessions.
+6. **Storage:** tokens, cached `/v1/me`, device ID, lock settings and the PIN live in
+   `expo-secure-store` behind `lib/auth/keychain.ts` (in-memory only on web previews; never
+   AsyncStorage/localStorage). The cached profile lets the app open signed-in and offline.
+   **Known iOS behaviour:** the Keychain survives uninstall, so a reinstalled app can come back
+   signed in. Fix later with a first-launch marker once we have non-secure storage.
+7. **Mock backend persistence:** the mock server saves its users and sessions under a
+   separate mock-only secure-store key so "restart keeps me signed in" works in mock mode.
+8. **Onboarding:** required step is name + username; email, photo and interests are
+   skippable. The onboarding flag is UI flow state only; access is decided by the session.
+   A skipped email shows a reminder card on Profile (no push reminder yet).
+9. **Profile photo is local only** (expo-image-picker, square crop, no permission prompt
+   needed for the library); upload arrives with media uploads. Camera and microphone
+   permissions are disabled in the config plugin.
+10. **App lock:** optional biometric (OS passcode fallback) or 4-digit PIN stored in secure
+    storage. Locks on cold start and after > 5 minutes in the background
+    (`EXPO_PUBLIC_APP_LOCK_AFTER_SEC`). 5 wrong PINs sign out; the counter survives restarts.
+    Face ID needs a development build (Expo Go falls back to the passcode).
+11. **Android SMS auto-read (approved): local Expo module `modules/sms-retriever`** wrapping
+    Google's SMS Retriever API (zero-tap, no SMS permission). The backend must end each OTP
+    SMS with the app's 11-character hash (shown in Dev settings on an Android development
+    build). Uses `play-services-auth-api-phone` 18.1.0 and `androidx.core` 1.13.1 — versions
+    not re-checked (Google Maven was unreachable) and **the Kotlin has not been compiled yet**:
+    the first Android development build is its first compile. iOS uses the OS one-time-code
+    autofill.
+12. **Library added (approved): `@hookform/resolvers`** for react-hook-form + zod.
+13. **Testing:** `expo-router/testing-library` drives the full new-user flow through the real
+    router; Jest maps CSS to a stub and transforms `standard-navigation`.
+14. **Platform fee copy** ("5% + ₦10 per sale") appears in the Become a seller sheet as
+    information only; it must come from the server once a fees endpoint exists.
+
 ## 2026-11-28 — expo-dev-client added
 
 1. **`expo-dev-client` installed** (approved) so the `development` and `development-simulator`

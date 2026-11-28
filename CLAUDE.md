@@ -16,7 +16,9 @@ and `packages/api-contract/openapi.yaml`. Never invent features or endpoints. De
 | `packages/config`                    | Shared ESLint, Prettier, tsconfig                                                          |
 
 App libraries: TanStack Query, Zustand, react-hook-form + zod, NativeWind, FlashList, expo-image,
-expo-network, expo-linear-gradient, @expo/vector-icons, expo-dev-client. **No new libraries without asking first.**
+expo-network, expo-linear-gradient, @expo/vector-icons, expo-dev-client, expo-secure-store,
+expo-local-authentication, expo-image-picker, @hookform/resolvers. Local native module:
+`apps/mobile/modules/sms-retriever` (Android). **No new libraries without asking first.**
 
 Commands (root): `pnpm dev` (Expo Go), `pnpm dev:client` (development build), `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm generate:api`.
 Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
@@ -47,6 +49,11 @@ Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
 - Errors: API calls only throw `ApiError { status, code, message }`. `code` is UPPER_SNAKE
   (`NOT_FOUND`, `NETWORK_ERROR`). Screens show `ErrorState` (offline variant when offline) with retry;
   show the server's `message`, never raw exceptions. Background refresh failures → toast, keep data.
+- Auth: use `api` (attaches the token, refreshes once on 401) for user endpoints and `publicApi`
+  for OTP/refresh/logout. Session data only via `lib/auth/secure-storage.ts` (expo-secure-store);
+  never AsyncStorage. Write `/v1/me` results with `applyMe()` so the store and cache agree.
+  Never compute roles or access client-side (`isSeller()` only reads `user.roles`).
+- Logging: `logger.sensitive()` for codes, tokens and phone numbers (prints only in mock mode).
 - Mocks: fixtures in `apps/mobile/src/mocks/fixtures`, reused by tests. `EXPO_PUBLIC_USE_MOCKS=true`
   answers requests from `src/mocks/handlers.ts`.
 

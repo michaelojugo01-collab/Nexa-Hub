@@ -38,6 +38,8 @@ yarn-error.*
 
 example
 
-# generated native folders
+# generated native folders (Continuous Native Generation). Local modules keep their android/ sources.
 /ios
 /android
+apps/mobile/ios/
+apps/mobile/android/

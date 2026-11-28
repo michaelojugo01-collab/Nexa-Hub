@@ -33,7 +33,17 @@ EXPO_PUBLIC_MOCK_SCENARIO=empty     # empty lists → empty states
 
 Restart `pnpm dev` after changing env values (add `--clear` if they don't apply).
 
+**Signing in with mocks:** the code is always `123456` (also printed in the dev server log).
+Returning accounts: `0803 123 4567` (seller) and `0805 555 0000` (buyer); any other number
+creates a new user. **Dev settings** (Welcome screen or Profile, development only) can make SMS
+fail, rate-limit code requests, simulate being offline, expire the access token, and reset the
+mock database. Set `EXPO_PUBLIC_MOCK_ACCESS_TOKEN_TTL_SEC=30` to watch silent refresh, and
+`EXPO_PUBLIC_APP_LOCK_AFTER_SEC=0` to test the app lock quickly.
+
 Profile → **Components** (development only) shows every component in every state.
+
+Android SMS auto-read and Face ID only work in a development build (`pnpm dev:client`), not
+Expo Go.
 
 ## Scripts (run from the repo root)
 
