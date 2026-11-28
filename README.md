@@ -45,6 +45,30 @@ Profile → **Components** (development only) shows every component in every sta
 Android SMS auto-read and Face ID only work in a development build (`pnpm dev:client`), not
 Expo Go.
 
+**Stores (F2) with mocks:** sign in as the buyer, tap Store → Become a seller → Set up my store
+(about a minute). Fixture stores to open: `adaezeprints` (owned by the seller account),
+`jollofacademy`, `kolacreates`, `lensbyemeka` (private), `adaezestudio` (old link that
+redirects to `adaezeprints`). About 1 in 6 photo uploads fail on purpose so you can see Retry
+(`EXPO_PUBLIC_MOCK_UPLOAD_FAILURE_RATE`; Dev settings can make every upload fail). Dev settings
+also turns on the Services tab flag.
+
+### Testing store links (deep links)
+
+The app scheme is `nexahub`. With the app running on a simulator, emulator or USB device:
+
+```bash
+npx uri-scheme open "nexahub://store/jollofacademy" --ios       # iOS simulator
+npx uri-scheme open "nexahub://store/jollofacademy" --android   # Android emulator/device
+npx uri-scheme open "nexahub://store/adaezestudio" --ios        # old slug → replaced by adaezeprints
+npx uri-scheme open "nexahub://jollofacademy" --android         # /{slug} form (future https links)
+```
+
+In **Expo Go** the scheme is Expo Go's own, so use the URL the dev server prints, e.g.
+`npx uri-scheme open "exp://192.168.1.10:8081/--/store/jollofacademy" --ios`. Without
+`uri-scheme`: `xcrun simctl openurl booted "nexahub://store/jollofacademy"` (iOS) or
+`adb shell am start -W -a android.intent.action.VIEW -d "nexahub://store/jollofacademy"` (Android).
+`https://nexahub.app/{slug}` links (universal / app links) are set up with the web pages in F3.
+
 ## Scripts (run from the repo root)
 
 | Command             | What it does                                                   |

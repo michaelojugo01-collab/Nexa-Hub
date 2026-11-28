@@ -2,6 +2,63 @@
 
 Newest first. Each entry: what was decided, why, and what would change it.
 
+## 2026-11-28 — F2 Stores and profiles (front end)
+
+1. **Proposed endpoints** (not in the spec's list; `x-status: proposed` in `openapi.yaml`):
+   - `DELETE /v1/stores/{id}/follow` → `{ storeId, following, followerCount }` (unfollow; the
+     spec lists follow and unfollow but only `POST`). Follow and unfollow are idempotent.
+   - `GET /v1/slugs/availability?slug=` → `{ slug, available, reason }`, reason
+     `taken | reserved | invalid`. Advisory; `POST`/`PATCH /v1/stores` re-check. Kept off
+     `/v1/stores/...` so it can't clash with a store slug.
+   - `GET /v1/me/store` → the seller's own store with owner-only fields
+     (`slugChangesRemaining`, `previousSlug`), private stores included; 404 = no store yet.
+     The Store tab uses it to choose setup vs dashboard.
+   - `POST /v1/me/store/uploads` `{ kind: avatar|banner, contentType, sizeBytes }` → a
+     pre-signed `PUT` (`uploadId, uploadUrl, method, headers, expiresAt, maxBytes`). The app
+     uploads straight to storage, then sends `avatarUploadId` / `bannerUploadId` (null removes)
+     with `POST`/`PATCH /v1/stores`. The server returns the resized images on the store as
+     `avatar` / `banner` `{ small, medium, large }`; there is no separate "processing" endpoint.
+2. **Upload limits (proposed):** JPEG, PNG or WebP; avatar **5 MB**, banner **10 MB**
+   (`FILE_TYPE_NOT_ALLOWED`, `FILE_TOO_LARGE`). The app also crops, shrinks (avatar 800×800,
+   banner 1500×500) and re-encodes as JPEG (quality 0.8) on the phone first, so a typical
+   upload is a few hundred KB; HEIC photos from iPhones work because they are re-encoded.
+3. **Contract additions to `Store`:** `category`, `avatar`, `banner`, `visibility`,
+   `isOwner` (server decides ownership), `redirectTo` (set when an old slug was requested; the
+   app replaces the route). `avatarUrl`/`coverUrl` stay for F0 screens. New error codes:
+   `SLUG_TAKEN`, `SLUG_RESERVED`, `SLUG_INVALID`, `SLUG_CHANGE_USED`, `STORE_EXISTS`,
+   `FILE_TOO_LARGE`, `FILE_TYPE_NOT_ALLOWED`, plus `STORE_PRIVATE` (403, so the page can say
+   "This store is private" instead of "not found"), `NOT_SELLER` (403) and
+   `CANNOT_FOLLOW_OWN_STORE` (409).
+4. **Slug rules:** 3–30 characters, `a–z`, `0–9` and single hyphens, starting and ending with
+   a letter or number (the contract's `Slug` pattern was tightened from 32 to 30). Changed
+   once; the old slug keeps redirecting and stays taken. The reserved list lives on the server;
+   the mock's list includes platform words, every top-level app route (store links share the
+   URL space: `nexahub.app/{slug}`), and a few well-known Nigerian creators and brands to stand
+   in for the impersonation list. The admin claim process is not built (backend + F12).
+5. **Link domain is a placeholder:** `nexahub.app`, in one constant
+   (`apps/mobile/src/lib/store-links.ts`). Change it there when the domain is decided.
+6. **Deep links:** `nexahub://store/{slug}` opens `/store/[slug]`; a root `[slug]` route
+   redirects `/{slug}` to the same screen, ready for https links in F3. Store pages are open
+   to signed-out visitors (not during onboarding). Follow while signed out → sign in → back to
+   the store (after onboarding for new accounts).
+7. **Libraries (approved):** `react-native-qrcode-svg` + `react-native-svg` (QR code, exported
+   as PNG and shared through the OS sheet, which also offers "Save image"), `expo-clipboard`,
+   `expo-sharing`, `expo-file-system` (PNG file for sharing, size check, upload with progress
+   via `File.upload`), `expo-image-manipulator`. **Banner crop:** our own crop screen (pinch and
+   drag in a 1:1 or 3:1 frame, gesture-handler + reanimated) instead of
+   `react-native-image-crop-picker`: same on iOS and Android, works in Expo Go, no extra
+   native dependency. No rotation or free-form crop. `expo-media-library` ("Save to Photos")
+   was declined.
+8. **Feature flags:** `useFeatureFlag(key)` reads local defaults in `src/lib/flags.ts`, with
+   Dev settings overrides; shaped to swap for PostHog. `servicesTab` (off) is the first flag.
+9. **Payout reminder** dismissal is remembered on the device (secure storage, cleared on
+   sign-out). Payouts (F7) and adding products (F4) are placeholder screens.
+10. **Store setup draft is in memory only:** closing the app mid-setup starts again.
+11. **Mock behaviour:** stores and follows persist under their own mock-only secure-store key;
+    uploads are simulated with progress (3× the mock delay) and fail about 1 in 6 times
+    (`EXPO_PUBLIC_MOCK_UPLOAD_FAILURE_RATE`); the "processed" variants all point at the
+    seller's own compressed file so they see their photo.
+
 ## 2026-11-28 — F1 Accounts and authentication (front end)
 
 1. **Proposed endpoints** (not in the spec's list; marked `x-status: proposed` in

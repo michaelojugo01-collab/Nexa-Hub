@@ -17,7 +17,8 @@ and `packages/api-contract/openapi.yaml`. Never invent features or endpoints. De
 
 App libraries: TanStack Query, Zustand, react-hook-form + zod, NativeWind, FlashList, expo-image,
 expo-network, expo-linear-gradient, @expo/vector-icons, expo-dev-client, expo-secure-store,
-expo-local-authentication, expo-image-picker, @hookform/resolvers. Local native module:
+expo-local-authentication, expo-image-picker, @hookform/resolvers, expo-image-manipulator,
+expo-clipboard, expo-sharing, expo-file-system, react-native-svg, react-native-qrcode-svg. Local native module:
 `apps/mobile/modules/sms-retriever` (Android). **No new libraries without asking first.**
 
 Commands (root): `pnpm dev` (Expo Go), `pnpm dev:client` (development build), `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm generate:api`.
@@ -32,7 +33,7 @@ Add app packages with `npx expo install <pkg>` inside `apps/mobile`.
 - **Build for iOS and Android equally.** Check every change on both: tests run per platform
   (`jest-expo/ios` + `jest-expo/android`), both bundles must build, and platform-specific code uses
   `Platform.select` or `.ios.tsx`/`.android.tsx` files with both sides implemented.
-- Release modules (R1–R13) go behind feature flags.
+- Release modules (R1–R13) go behind feature flags: `useFeatureFlag(key)` from `src/lib/flags.ts`.
 - No secrets in the app. `EXPO_PUBLIC_*` values are public.
 - Never hand-edit `packages/api-contract/src/generated/`. Change `openapi.yaml`, run `pnpm generate:api`.
 - No hard-coded colours or sizes in components: use token classes (`bg-surface`, `text-text-muted`, `p-4`)
