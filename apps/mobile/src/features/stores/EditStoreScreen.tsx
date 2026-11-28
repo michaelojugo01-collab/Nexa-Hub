@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { OwnStore, StoreUpdate } from '@nexa/api-contract';
 import { router, Stack, useNavigation, usePreventRemove } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Alert, Platform, Text, View } from 'react-native';
 
@@ -62,6 +62,8 @@ function EditStoreForm({ store }: { store: OwnStore }) {
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [removeBanner, setRemoveBanner] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Set on a successful save: the leave-guard turns off, then the effect goes back.
+  const [saved, setSaved] = useState(false);
   const canChangeSlug = store.slugChangesRemaining > 0;
 
   const { control, handleSubmit, setError, formState, reset } = useForm<StoreForm>({
@@ -85,8 +87,11 @@ function EditStoreForm({ store }: { store: OwnStore }) {
   const dirty = formState.isDirty || imagesChanged;
   const busy = isUploadBusy(avatar.state) || isUploadBusy(banner.state);
 
-  usePreventRemove(dirty && !save.isPending && !save.isSuccess, ({ data }) => {
-    if (Platform.OS === 'web') return navigation.dispatch(data.action);
+  useEffect(() => {
+    if (saved) router.back();
+  }, [saved]);
+
+  usePreventRemove(Platform.OS !== 'web' && dirty && !saved && !save.isPending, ({ data }) => {
     Alert.alert('Discard changes?', 'Your edits haven’t been saved.', [
       { text: 'Keep editing', style: 'cancel' },
       { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
@@ -118,15 +123,15 @@ function EditStoreForm({ store }: { store: OwnStore }) {
       return;
     }
     save.mutate(patch, {
-      onSuccess: (saved) => {
+      onSuccess: (updated) => {
         reset({
-          name: saved.name,
-          slug: saved.slug,
-          categorySlug: saved.category?.slug ?? '',
-          bio: saved.bio ?? '',
+          name: updated.name,
+          slug: updated.slug,
+          categorySlug: updated.category?.slug ?? '',
+          bio: updated.bio ?? '',
         });
         toast.show('Store saved', 'success');
-        router.back();
+        setSaved(true);
       },
       onError: (error) => {
         const code = errorCode(error);

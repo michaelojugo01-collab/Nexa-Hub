@@ -32,10 +32,16 @@ const initialsSize: Record<AvatarSize, string> = {
   xl: 'text-3xl',
 };
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+/** First letter of the first and last words that start with a letter (skips emoji, "&"). */
+export function initials(name: string) {
+  const letters = name
+    .normalize('NFC')
+    .trim()
+    .split(/\s+/)
+    .map((word) => Array.from(word)[0] ?? '')
+    .filter((ch) => ch.toLowerCase() !== ch.toUpperCase());
+  const first = letters[0] ?? '';
+  const last = letters.length > 1 ? (letters[letters.length - 1] ?? '') : '';
   return (first + last).toUpperCase() || '?';
 }
 

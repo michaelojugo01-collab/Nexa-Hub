@@ -31,7 +31,9 @@ export default function TabsLayout() {
     const path = useReturnTo.getState().path;
     if (!path) return;
     useReturnTo.getState().set(null);
-    router.push(path as never);
+    // After this navigator's first render: the router isn't ready during it.
+    const timer = setTimeout(() => router.push(path as never), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   return (

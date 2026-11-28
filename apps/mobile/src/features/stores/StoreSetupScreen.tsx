@@ -2,8 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { OwnStore } from '@nexa/api-contract';
 import { useMutation } from '@tanstack/react-query';
-import { router, useNavigation, usePreventRemove } from 'expo-router';
-import { useState } from 'react';
+import { router, useNavigation, usePreventRemove, type Href } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -39,6 +39,8 @@ export function StoreSetupScreen() {
   const [step, setStep] = useState(0);
   const [slugEdited, setSlugEdited] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Where to go once the leave-guard is off (set on success; see the effect below).
+  const [exitTo, setExitTo] = useState<Href | null>(null);
   const avatar = useImageUpload('avatar');
   const banner = useImageUpload('banner');
   const categories = useCategories();
@@ -69,7 +71,7 @@ export function StoreSetupScreen() {
     },
     onSuccess: async (store: OwnStore) => {
       await applyOwnStore(store);
-      router.replace('/seller/published');
+      setExitTo('/seller/published');
     },
     onError: (error) => {
       const code = errorCode(error);
@@ -82,7 +84,7 @@ export function StoreSetupScreen() {
       }
       if (code === 'STORE_EXISTS') {
         toast.show(errorMessage(error), 'info');
-        router.replace('/store');
+        setExitTo('/store');
         return;
       }
       setNotice(
@@ -94,13 +96,16 @@ export function StoreSetupScreen() {
   });
 
   const dirty = !!name || !!slug || !!categorySlug || !!bio || avatar.state.status !== 'empty';
-  usePreventRemove(dirty && !publish.isPending && !publish.isSuccess, ({ data }) => {
-    if (Platform.OS === 'web') return navigation.dispatch(data.action);
+  usePreventRemove(Platform.OS !== 'web' && dirty && !exitTo && !publish.isPending, ({ data }) => {
     Alert.alert('Leave store setup?', 'What you’ve entered so far will be lost.', [
       { text: 'Keep going', style: 'cancel' },
       { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
     ]);
   });
+
+  useEffect(() => {
+    if (exitTo) router.replace(exitTo);
+  }, [exitTo]);
 
   function onNameChange(text: string, onChange: (value: string) => void) {
     onChange(text);
