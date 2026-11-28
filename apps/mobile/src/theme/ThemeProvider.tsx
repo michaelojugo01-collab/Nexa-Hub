@@ -38,3 +38,13 @@ export function ThemeProvider({ name = 'light', children }: ThemeProviderProps) 
 export function useTheme() {
   return useContext(ThemeContext);
 }
+
+/**
+ * Re-applies the theme's CSS variables. Needed inside portals such as React Native's Modal,
+ * which render outside the ThemeProvider's view on web.
+ */
+export function ThemeScope({ children }: { children: ReactNode }) {
+  const theme = useContext(ThemeContext);
+  const style = useMemo(() => toCssVars(theme), [theme]);
+  return <View style={[{ flex: 1 }, style]}>{children}</View>;
+}
