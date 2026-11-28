@@ -563,7 +563,11 @@ export class MockProductServer {
     ) {
       return err(400, 'VALIDATION_ERROR', 'Show 0 to 5 preview pages.');
     }
-    if (body.visibility !== undefined && body.visibility !== 'public' && body.visibility !== 'unlisted') {
+    if (
+      body.visibility !== undefined &&
+      body.visibility !== 'public' &&
+      body.visibility !== 'unlisted'
+    ) {
       return err(400, 'VALIDATION_ERROR', 'Visibility is public or unlisted.');
     }
     const asset = (assetId: string | null | undefined, kind: AssetRecord['kind']) =>
@@ -670,14 +674,13 @@ export class MockProductServer {
     return ok(this.ownView(product));
   }
 
-  /** Mock admin: approve a listing in review (Dev settings / tests). */
-  async approveReview(id: string) {
+  /** Mock admin: approve listings in review (one, or all of them). Dev settings / tests. */
+  async approveReview(id?: string) {
     await this.ensureLoaded();
-    const product = this.db.products[id];
-    if (product?.state === 'pending_review') {
-      product.state = 'live';
-      await this.persist();
+    for (const product of Object.values(this.db.products)) {
+      if (product.state === 'pending_review' && (!id || product.id === id)) product.state = 'live';
     }
+    await this.persist();
   }
 
   // ── Multipart uploads ─────────────────────────────────────────────────────

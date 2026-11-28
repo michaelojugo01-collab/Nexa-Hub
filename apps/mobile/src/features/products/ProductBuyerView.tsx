@@ -64,21 +64,23 @@ export function ProductBuyerView({
 
   return (
     <ScrollView contentContainerClassName="gap-4 pb-10" testID={testID}>
-      {product.coverUrl ? (
-        <Image
-          source={{ uri: product.coverUrl }}
-          contentFit="cover"
-          accessibilityLabel={`Cover of ${product.title}`}
-          className="w-full bg-surface-muted"
-          style={{ aspectRatio: 4 / 3 }}
-        />
-      ) : (
-        <View
-          className="w-full items-center justify-center bg-surface-muted"
-          style={{ aspectRatio: 4 / 3 }}>
-          <Text className="text-sm text-text-muted">No cover yet</Text>
-        </View>
-      )}
+      <View
+        className="w-full bg-surface-muted"
+        style={{ aspectRatio: 4 / 3 }}
+        testID={`${testID}-cover`}>
+        {product.coverUrl ? (
+          <Image
+            source={{ uri: product.coverUrl }}
+            contentFit="cover"
+            accessibilityLabel={`Cover of ${product.title}`}
+            className="h-full w-full"
+          />
+        ) : (
+          <View className="flex-1 items-center justify-center">
+            <Text className="text-sm text-text-muted">No cover yet</Text>
+          </View>
+        )}
+      </View>
       <View className="gap-3 px-4">
         <Text className="text-xs font-medium uppercase text-text-muted" testID={`${testID}-facts`}>
           {facts.join(' · ')}

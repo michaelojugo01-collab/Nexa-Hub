@@ -29,7 +29,7 @@ export function PreviewPages({
           source={{ uri }}
           contentFit="cover"
           accessibilityLabel={`Sample page ${i + 1}`}
-          className="h-48 w-36 rounded-md border border-border bg-surface-muted"
+          className="h-40 w-32 rounded-md border border-border bg-surface-muted"
         />
       ))}
     </ScrollView>

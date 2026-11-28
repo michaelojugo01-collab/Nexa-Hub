@@ -13,6 +13,7 @@ import { queryClient, wireQueryManagers } from '@/lib/api/query-client';
 import { restoreSession } from '@/lib/auth/session';
 import { useAuthStore } from '@/stores/auth-store';
 import { LockScreen } from '@/features/lock/LockScreen';
+import { UploadResumer } from '@/features/products/upload/UploadResumer';
 import { useAppLock } from '@/features/lock/use-app-lock';
 import { useLockStore } from '@/stores/lock-store';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -77,6 +78,7 @@ export default function RootLayout() {
               />
             </Stack.Protected>
           </Stack>
+          {signedIn && !onboarding ? <UploadResumer /> : null}
           {signedIn && locked ? <LockScreen /> : null}
           <ToastHost />
         </ThemeProvider>

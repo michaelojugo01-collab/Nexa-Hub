@@ -21,6 +21,20 @@ import {
 
 type Props = { params: Promise<{ store: string; product: string }> };
 
+function productFacts(product: Awaited<ReturnType<typeof load>>) {
+  const mb = product.content.fileSizeBytes ? product.content.fileSizeBytes / (1024 * 1024) : null;
+  const minutes = product.content.durationSeconds
+    ? Math.round(product.content.durationSeconds / 60)
+    : null;
+  return [
+    product.typeName,
+    product.content.fileLabel,
+    product.content.pageCount ? `${product.content.pageCount} pages` : null,
+    minutes ? `${minutes} min` : null,
+    mb ? `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB` : null,
+  ].filter(Boolean);
+}
+
 /** Every product renders on its first visit, then is cached (ISR). */
 export async function generateStaticParams() {
   return [];
@@ -66,10 +80,26 @@ export default async function ProductPage({ params }: Props) {
         )}
       </div>
       <section className="flex flex-col gap-3 px-4 pt-5">
-        <span className="text-xs font-medium uppercase text-text-muted">{product.typeName}</span>
+        <span className="text-xs font-medium uppercase text-text-muted" data-testid="product-facts">
+          {productFacts(product).join(' · ')}
+        </span>
         <h1 className="text-2xl font-bold text-text">{product.title}</h1>
         <Price price={product.price} compareAt={product.compareAtPrice} large />
         {product.description ? <p className="text-base text-text">{product.description}</p> : null}
+        {product.preview.pages.length ? (
+          <div className="flex gap-3 overflow-x-auto pb-1" aria-label="Sample pages">
+            {product.preview.pages.map((page, i) => (
+              <Image
+                key={page}
+                src={page}
+                alt={`Sample page ${i + 1}`}
+                width={128}
+                height={160}
+                className="h-40 w-32 flex-none rounded-md border border-border object-cover"
+              />
+            ))}
+          </div>
+        ) : null}
         <RefCodeBox path={path} />
         <AppActions path={path} primaryLabel="Buy in the app" />
         <p className="text-xs text-text-subtle">

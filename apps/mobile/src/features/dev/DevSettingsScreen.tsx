@@ -2,7 +2,7 @@ import { Redirect } from 'expo-router';
 import { Platform, Switch, Text, View } from 'react-native';
 
 import { Button, Card, ListItem, Screen } from '@/components';
-import { mockServer } from '@/lib/api/client';
+import { mockProducts, mockServer } from '@/lib/api/client';
 import { refreshMe } from '@/lib/auth/session';
 import { signOutLocally } from '@/lib/auth/sign-out';
 import { config } from '@/lib/config';
@@ -105,6 +105,20 @@ export function DevSettingsScreen() {
             onChange={(v) => control.set({ uploadsFail: v })}
             testID="dev-uploads-fail"
           />
+          <Toggle
+            title="Product upload drops"
+            subtitle="Every product upload part fails like a dropped connection"
+            value={control.networkDrops}
+            onChange={(v) => control.set({ networkDrops: v })}
+            testID="dev-network-drops"
+          />
+          <Toggle
+            title="Files fail virus scan"
+            subtitle="Every finished product file is rejected"
+            value={control.filesRejected}
+            onChange={(v) => control.set({ filesRejected: v })}
+            testID="dev-files-rejected"
+          />
         </Card>
 
         <Card flush className="px-4">
@@ -129,6 +143,16 @@ export function DevSettingsScreen() {
             Any other number creates a new user.
           </Text>
         </Card>
+
+        <Button
+          label="Approve listings in review"
+          variant="secondary"
+          onPress={async () => {
+            await mockProducts?.approveReview();
+            toast.show('Listings in review approved', 'success');
+          }}
+          testID="dev-approve-review"
+        />
 
         {user ? (
           <Button

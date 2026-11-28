@@ -51,7 +51,10 @@ export function speakKobo(amountKobo: number): string {
  * plain non-negative naira amount with at most 2 decimals ("1e3", "12.345", "-5", "abc").
  */
 export function parseNairaToKobo(input: string): number | null {
-  const cleaned = input.trim().replace(/^₦\s*/, '').replace(/^NGN\s*/i, '');
+  const cleaned = input
+    .trim()
+    .replace(/^₦\s*/, '')
+    .replace(/^NGN\s*/i, '');
   if (!/^(\d{1,3}(,\d{3})+|\d+)(\.\d{0,2})?$/.test(cleaned)) return null;
   const [whole = '0', fraction = ''] = cleaned.replace(/,/g, '').split('.');
   const kobo = Number(whole) * 100 + Number(fraction.padEnd(2, '0') || '0');
