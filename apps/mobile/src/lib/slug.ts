@@ -1,28 +1,11 @@
 /**
- * Store links ("slugs"). The format rules mirror the contract's Slug schema; whether a
- * slug is reserved or taken is only ever decided by the server.
+ * Store links ("slugs"). The format rules live in @nexa/api-contract (shared with the mocks
+ * and the web); this file adds the app's messages and the suggestion from a store name.
  */
 
-export const SLUG_MIN = 3;
-export const SLUG_MAX = 30;
+import { SLUG_MAX, SLUG_MIN, type SlugProblem } from '@nexa/api-contract';
 
-const SLUG_PATTERN = /^(?!.*--)[a-z0-9][a-z0-9-]*[a-z0-9]$/;
-
-export type SlugProblem = 'empty' | 'too-short' | 'too-long' | 'characters' | 'hyphens';
-
-/** Why a slug is not a valid format, or null if it is. */
-export function slugProblem(slug: string): SlugProblem | null {
-  if (slug.length === 0) return 'empty';
-  if (/[^a-z0-9-]/.test(slug)) return 'characters';
-  if (slug.length < SLUG_MIN) return 'too-short';
-  if (slug.length > SLUG_MAX) return 'too-long';
-  if (!SLUG_PATTERN.test(slug)) return 'hyphens';
-  return null;
-}
-
-export function isValidSlug(slug: string) {
-  return slugProblem(slug) === null;
-}
+export { isValidSlug, SLUG_MAX, SLUG_MIN, slugProblem, type SlugProblem } from '@nexa/api-contract';
 
 export const slugProblemText: Record<SlugProblem, string> = {
   empty: 'Choose a link for your store.',

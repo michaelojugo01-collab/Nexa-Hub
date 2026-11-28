@@ -10,8 +10,6 @@ import type {
   UsernameAvailability,
 } from '@nexa/api-contract';
 
-import { logger } from '@/lib/logger';
-
 import {
   categories,
   fixtureUsers,
@@ -19,7 +17,8 @@ import {
   reservedUsernames,
   takenUsernames,
 } from '../fixtures';
-import type { MockPersistence } from './persistence';
+import { mockLog as logger } from '../log';
+import type { MockPersistence } from '../persistence';
 
 /**
  * A small in-memory fake of the auth/me backend that follows the spec's rules (F1):

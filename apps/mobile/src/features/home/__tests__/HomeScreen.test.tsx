@@ -1,8 +1,7 @@
 import { createApiClient } from '@nexa/api-contract';
 import { fireEvent, screen } from '@testing-library/react-native';
 
-import { discoverHome } from '@/mocks/fixtures';
-import { createMockFetch, type MockFetchOptions } from '@/mocks/mock-fetch';
+import { createMockFetch, discoverHome, type MockFetchOptions } from '@nexa/mocks';
 import { renderWithProviders } from '@/test/render';
 
 import { HomeScreen } from '../HomeScreen';

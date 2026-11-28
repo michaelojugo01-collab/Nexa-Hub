@@ -1,7 +1,6 @@
 import { createApiClient, isApiError, type ProductSummary } from '@nexa/api-contract';
 
-import { products, stores } from '../fixtures';
-import { createMockFetch } from '../mock-fetch';
+import { createMockFetch, products, stores } from '@nexa/mocks';
 
 const api = createApiClient({ baseUrl: 'https://test.nexahub.ng', fetch: createMockFetch() });
 

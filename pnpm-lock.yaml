@@ -29,6 +29,9 @@ importers:
       '@nexa/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
+      '@nexa/mocks':
+        specifier: workspace:*
+        version: link:../../packages/mocks
       '@nexa/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -188,6 +191,16 @@ importers:
         version: 6.0.3
 
   packages/config: {}
+
+  packages/mocks:
+    dependencies:
+      '@nexa/api-contract':
+        specifier: workspace:*
+        version: link:../api-contract
+    devDependencies:
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
 
   packages/ui: {}
 

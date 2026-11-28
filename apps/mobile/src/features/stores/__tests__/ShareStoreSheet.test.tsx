@@ -21,7 +21,9 @@ describe('share sheet', () => {
   });
 
   it('opens the OS share sheet with the link', async () => {
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction', activityType: undefined });
+    const share = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction', activityType: undefined });
     await renderWithProviders(<ShareStoreSheet visible onClose={() => {}} store={store} />);
     await fireEvent.press(screen.getByTestId('share-native'));
     const [content] = share.mock.calls[0]!;

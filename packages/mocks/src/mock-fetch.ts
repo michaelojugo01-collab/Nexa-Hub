@@ -1,7 +1,7 @@
 import type { FetchLike } from '@nexa/api-contract';
 
 import { MockAuthServer } from './auth/server';
-import { memoryPersistence } from './auth/persistence';
+import { memoryPersistence } from './persistence';
 import { handleMockRequest, type MockFlags, type MockScenario } from './handlers';
 import { MockStoreServer } from './stores/server';
 

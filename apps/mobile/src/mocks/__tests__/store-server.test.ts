@@ -1,10 +1,12 @@
 import { createApiClient, type ApiError } from '@nexa/api-contract';
 
-import { memoryPersistence } from '../auth/persistence';
-import { MockAuthServer } from '../auth/server';
-import { MOCK_OTP_CODE } from '../fixtures';
-import { createMockFetch } from '../mock-fetch';
-import { MockStoreServer } from '../stores/server';
+import {
+  createMockFetch,
+  memoryPersistence,
+  MOCK_OTP_CODE,
+  MockAuthServer,
+  MockStoreServer,
+} from '@nexa/mocks';
 
 const BASE = 'https://test.nexahub.ng';
 const ADAEZE = '+2348031234567'; // seller, owns adaezeprints (slug already changed once)

@@ -1,4 +1,4 @@
-import type { MockScenario } from '@/mocks/handlers';
+import type { MockScenario } from '@nexa/mocks';
 
 // EXPO_PUBLIC_* values are inlined at build time. They are NOT secret: never put keys here.
 // Each must be read as a literal `process.env.EXPO_PUBLIC_X` for Expo to inline it.

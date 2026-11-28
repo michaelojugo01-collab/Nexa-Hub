@@ -3,12 +3,13 @@ import { ApiError, createApiClient, isApiError, type FetchLike } from '@nexa/api
 import { secureStorage } from '@/lib/auth/secure-storage';
 import { signOutLocally } from '@/lib/auth/sign-out';
 import { config } from '@/lib/config';
-import { MockAuthServer } from '@/mocks/auth/server';
-import { secureStorePersistence, storesSecureStorePersistence } from '@/mocks/auth/persistence';
+import { logger } from '@/lib/logger';
+import { createMockFetch, MockAuthServer, MockStoreServer, setMockLogger } from '@nexa/mocks';
+import { secureStorePersistence, storesSecureStorePersistence } from '@/mocks/persistence';
 import { useMockControl } from '@/mocks/mock-control';
-import { createMockFetch } from '@/mocks/mock-fetch';
-import { MockStoreServer } from '@/mocks/stores/server';
 import { useAuthStore } from '@/stores/auth-store';
+
+if (config.useMocks) setMockLogger(logger);
 
 /** The fake backend used in mock mode. Its state survives restarts (mock-only storage key). */
 export const mockServer = config.useMocks

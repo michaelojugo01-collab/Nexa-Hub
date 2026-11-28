@@ -10,13 +10,18 @@ import type {
   UploadTicket,
 } from '@nexa/api-contract';
 
-import { logger } from '@/lib/logger';
-import { STORE_BIO_MAX, STORE_NAME_MAX, STORE_NAME_MIN } from '@/lib/schemas';
-import { isValidSlug } from '@/lib/slug';
-import { isAllowedImageType, uploadLimits } from '@/lib/upload-limits';
+import {
+  isAllowedImageType,
+  isValidSlug,
+  STORE_BIO_MAX,
+  STORE_NAME_MAX,
+  STORE_NAME_MIN,
+  uploadLimits,
+} from '@nexa/api-contract';
 
 import type { MockAuthServer, MockResult } from '../auth/server';
-import type { MockPersistence } from '../auth/persistence';
+import { mockLog as logger } from '../log';
+import type { MockPersistence } from '../persistence';
 import {
   categories,
   fixtureFollows,

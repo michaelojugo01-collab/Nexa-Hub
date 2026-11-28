@@ -2,7 +2,7 @@ import { publicApi } from '@/lib/api/client';
 import { queryClient } from '@/lib/api/query-client';
 import { secureStorage } from '@/lib/auth/secure-storage';
 import { startSession } from '@/lib/auth/session';
-import { MOCK_OTP_CODE } from '@/mocks/fixtures';
+import { MOCK_OTP_CODE } from '@nexa/mocks';
 import { useMockControl } from '@/mocks/mock-control';
 import { useAuthStore } from '@/stores/auth-store';
 

@@ -1,0 +1,21 @@
+{
+  "name": "@nexa/mocks",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Mock Nexa Hub backend: fixtures, route table and fake servers. Shared by the app, the web and tests.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nexa/api-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}

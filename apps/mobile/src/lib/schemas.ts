@@ -1,3 +1,4 @@
+import { STORE_BIO_MAX, STORE_NAME_MAX, STORE_NAME_MIN } from '@nexa/api-contract';
 import { z } from 'zod';
 
 import { normaliseNigerianPhone } from './phone';
@@ -76,9 +77,7 @@ export type ProfileForm = z.infer<typeof profileFormSchema>;
 
 // ── Stores (F2) ──────────────────────────────────────────────────────────────
 
-export const STORE_BIO_MAX = 150;
-export const STORE_NAME_MIN = 2;
-export const STORE_NAME_MAX = 40;
+export { STORE_BIO_MAX, STORE_NAME_MAX, STORE_NAME_MIN };
 
 export const storeNameSchema = z
   .string()

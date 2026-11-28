@@ -8,7 +8,7 @@ import { signOutLocally } from '@/lib/auth/sign-out';
 import { config } from '@/lib/config';
 import { useFeatureFlag, useFlagOverrides } from '@/lib/flags';
 import { formatNigerianPhone } from '@/lib/phone';
-import { fixtureUsers, MOCK_OTP_CODE } from '@/mocks/fixtures';
+import { fixtureUsers, MOCK_OTP_CODE } from '@nexa/mocks';
 import { useMockControl } from '@/mocks/mock-control';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from '@/stores/toast-store';

@@ -105,9 +105,7 @@ describe('store schemas', () => {
   });
 
   it('gives a readable message for each slug problem', () => {
-    expect(slugSchema.safeParse('ab').error?.issues[0]?.message).toBe(
-      'Use at least 3 characters.',
-    );
+    expect(slugSchema.safeParse('ab').error?.issues[0]?.message).toBe('Use at least 3 characters.');
     expect(slugSchema.safeParse('Bisi').error?.issues[0]?.message).toBe(
       'Use only lowercase letters, numbers and hyphens.',
     );

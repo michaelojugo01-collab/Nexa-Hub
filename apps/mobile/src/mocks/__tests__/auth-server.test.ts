@@ -1,9 +1,6 @@
 import { createApiClient, type ApiError } from '@nexa/api-contract';
 
-import { memoryPersistence } from '../auth/persistence';
-import { MockAuthServer } from '../auth/server';
-import { MOCK_OTP_CODE } from '../fixtures';
-import { createMockFetch } from '../mock-fetch';
+import { createMockFetch, memoryPersistence, MOCK_OTP_CODE, MockAuthServer } from '@nexa/mocks';
 
 const DEVICE = 'dev_test';
 
