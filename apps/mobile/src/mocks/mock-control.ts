@@ -8,6 +8,8 @@ type MockControlState = {
   rateLimited: boolean;
   /** Every mocked request fails as if there were no network. */
   offline: boolean;
+  /** Every simulated store image upload fails (otherwise about 1 in 6 do). */
+  uploadsFail: boolean;
   set: (patch: Partial<Omit<MockControlState, 'set'>>) => void;
 };
 
@@ -15,5 +17,6 @@ export const useMockControl = create<MockControlState>((set) => ({
   smsDown: false,
   rateLimited: false,
   offline: false,
+  uploadsFail: false,
   set: (patch) => set(patch),
 }));

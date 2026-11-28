@@ -1,4 +1,5 @@
 import type { StoreSummary } from '@nexa/api-contract';
+import { router } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 
 import { Avatar, Badge, Card } from '@/components';
@@ -16,6 +17,7 @@ export function FeaturedStores({ stores }: { stores: StoreSummary[] }) {
           key={store.id}
           className="w-40"
           testID={`store-card-${store.slug}`}
+          onPress={() => router.push({ pathname: '/store/[slug]', params: { slug: store.slug } })}
           accessibilityLabel={`${store.name}${store.location ? `, ${store.location}` : ''}`}>
           <View className="items-start gap-2">
             <Avatar name={store.name} uri={store.avatarUrl} size="md" ring={store.verified} />

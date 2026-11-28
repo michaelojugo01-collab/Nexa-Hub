@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
+import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
 import { cn } from '@/lib/cn';
@@ -25,6 +26,8 @@ type StoreHeaderProps = {
   following?: boolean;
   onFollowPress?: () => void;
   followLoading?: boolean;
+  /** Replaces the Follow button, e.g. "Edit store" when the owner views their store. */
+  action?: ReactNode;
   className?: string;
   testID?: string;
 };
@@ -48,6 +51,7 @@ export function StoreHeader({
   following = false,
   onFollowPress,
   followLoading = false,
+  action,
   className,
   testID,
 }: StoreHeaderProps) {
@@ -69,7 +73,8 @@ export function StoreHeader({
       <View className="-mt-10 gap-3 px-4">
         <View className="flex-row items-end justify-between">
           <Avatar name={name} uri={avatarUrl} size="xl" ring={verified} />
-          {onFollowPress ? (
+          {action ?? null}
+          {!action && onFollowPress ? (
             <Button
               label={following ? 'Following' : 'Follow'}
               variant={following ? 'secondary' : 'primary'}

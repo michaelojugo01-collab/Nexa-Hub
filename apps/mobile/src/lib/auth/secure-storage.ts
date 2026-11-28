@@ -15,6 +15,7 @@ const KEYS = {
   lockMode: 'nexa.lock.mode',
   lockPin: 'nexa.lock.pin',
   lockFailures: 'nexa.lock.failures',
+  payoutReminderDismissed: 'nexa.seller.payoutReminderDismissed',
 } as const;
 
 export type LockMode = 'off' | 'biometric' | 'pin';
@@ -73,6 +74,7 @@ export const secureStorage = {
         KEYS.refreshToken,
         KEYS.user,
         KEYS.localAvatarUri,
+        KEYS.payoutReminderDismissed,
       ].map((k) => keychain.remove(k).catch(() => undefined)),
     );
   },
@@ -112,5 +114,13 @@ export const secureStorage = {
   async setLocalAvatarUri(uri: string | null) {
     if (uri) await keychain.set(KEYS.localAvatarUri, uri);
     else await keychain.remove(KEYS.localAvatarUri).catch(() => undefined);
+  },
+
+  /** The seller closed the "Add your bank account" reminder on this device (F2). */
+  async getPayoutReminderDismissed() {
+    return (await get(KEYS.payoutReminderDismissed)) === 'true';
+  },
+  async setPayoutReminderDismissed() {
+    await keychain.set(KEYS.payoutReminderDismissed, 'true').catch(() => undefined);
   },
 };

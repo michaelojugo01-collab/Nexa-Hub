@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
-import type { ComponentProps } from 'react';
+import { router, Tabs } from 'expo-router';
+import { useEffect, type ComponentProps } from 'react';
 import type { ColorValue } from 'react-native';
 
+import { useReturnTo } from '@/features/stores/return-to';
 import { useTheme } from '@/theme/ThemeProvider';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -24,6 +25,14 @@ function tabIcon(active: IconName, inactive: IconName) {
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+
+  // A new account that signed up from a store page goes back there after onboarding.
+  useEffect(() => {
+    const path = useReturnTo.getState().path;
+    if (!path) return;
+    useReturnTo.getState().set(null);
+    router.push(path as never);
+  }, []);
 
   return (
     <Tabs

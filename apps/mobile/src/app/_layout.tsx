@@ -47,6 +47,12 @@ export default function RootLayout() {
             <Stack.Protected guard={signedIn && !onboarding}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="account" />
+              <Stack.Screen name="seller" />
+            </Stack.Protected>
+            {/* Public store pages: open signed out too, but not in the middle of onboarding. */}
+            <Stack.Protected guard={!(signedIn && onboarding)}>
+              <Stack.Screen name="store/[slug]" />
+              <Stack.Screen name="[slug]" />
             </Stack.Protected>
             <Stack.Protected guard={signedIn && onboarding}>
               <Stack.Screen name="(onboarding)" />

@@ -35,7 +35,7 @@ describe('Become a seller', () => {
     await fireEvent.press(await screen.findByTestId('become-seller-confirm'));
 
     expect(await screen.findByTestId('profile-role-seller')).toBeOnTheScreen();
-    expect(await screen.findByTestId('store-seller-state')).toBeOnTheScreen();
+    expect(await screen.findByTestId('store-setup-intro')).toBeOnTheScreen();
     expect(screen.queryByTestId('store-buyer-state')).not.toBeOnTheScreen();
 
     // Same session: no re-login, tokens untouched, role came from the server response.

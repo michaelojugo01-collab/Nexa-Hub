@@ -23,7 +23,12 @@ export async function resetAppState() {
   const { __keychain } = require('@/lib/auth/keychain') as { __keychain: Map<string, string> };
   __keychain.clear();
   queryClient.clear();
-  useMockControl.setState({ smsDown: false, rateLimited: false, offline: false });
+  useMockControl.setState({
+    smsDown: false,
+    rateLimited: false,
+    offline: false,
+    uploadsFail: false,
+  });
   useAuthStore.setState({
     status: 'signedOut',
     user: null,

@@ -7,6 +7,7 @@ export const config = {
   useMocks: true,
   mockDelayMs: 0,
   mockFailureRate: 0,
+  mockUploadFailureRate: 0,
   mockAccessTokenTtlSec: 30,
   appLockAfterSec: 300,
   mockScenario: 'default' as const,

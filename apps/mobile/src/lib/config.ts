@@ -20,6 +20,11 @@ export const config = {
   ),
   /** Lock the app when it returns from the background after this many seconds (spec: 5 min). */
   appLockAfterSec: Math.max(0, toNumber(process.env.EXPO_PUBLIC_APP_LOCK_AFTER_SEC, 300)),
+  /** Share of simulated store image uploads that fail, so Retry can be seen (mock mode). */
+  mockUploadFailureRate: Math.min(
+    1,
+    Math.max(0, toNumber(process.env.EXPO_PUBLIC_MOCK_UPLOAD_FAILURE_RATE, 0.15)),
+  ),
   mockScenario: (process.env.EXPO_PUBLIC_MOCK_SCENARIO === 'empty'
     ? 'empty'
     : 'default') satisfies MockScenario as MockScenario,

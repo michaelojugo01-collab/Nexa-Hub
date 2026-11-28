@@ -6,6 +6,7 @@ import { mockServer } from '@/lib/api/client';
 import { refreshMe } from '@/lib/auth/session';
 import { signOutLocally } from '@/lib/auth/sign-out';
 import { config } from '@/lib/config';
+import { useFeatureFlag, useFlagOverrides } from '@/lib/flags';
 import { formatNigerianPhone } from '@/lib/phone';
 import { fixtureUsers, MOCK_OTP_CODE } from '@/mocks/fixtures';
 import { useMockControl } from '@/mocks/mock-control';
@@ -51,6 +52,8 @@ function Toggle({
 export function DevSettingsScreen() {
   const control = useMockControl();
   const user = useAuthStore((s) => s.user);
+  const servicesTab = useFeatureFlag('servicesTab');
+  const setFlag = useFlagOverrides((s) => s.setOverride);
   if (!__DEV__) return <Redirect href="/" />;
 
   /** Swap in a token that the mock server sees as expired: the next request must refresh. */
@@ -94,6 +97,23 @@ export function DevSettingsScreen() {
             value={control.offline}
             onChange={(v) => control.set({ offline: v })}
             testID="dev-offline"
+          />
+          <Toggle
+            title="Store uploads fail"
+            subtitle="Every store image upload fails (otherwise about 1 in 6)"
+            value={control.uploadsFail}
+            onChange={(v) => control.set({ uploadsFail: v })}
+            testID="dev-uploads-fail"
+          />
+        </Card>
+
+        <Card flush className="px-4">
+          <Toggle
+            title="Flag: Services tab"
+            subtitle="Show the Services tab on store pages (off by default)"
+            value={servicesTab}
+            onChange={(v) => setFlag('servicesTab', v)}
+            testID="dev-flag-services"
           />
         </Card>
 
