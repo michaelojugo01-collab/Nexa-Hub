@@ -19,7 +19,5 @@ android {
 
 dependencies {
   // Google SMS Retriever API: reads the one SMS that carries this app's hash. No SMS permission.
-  implementation "com.google.android.gms:play-services-auth-api-phone:18.1.0"
-  // ContextCompat.registerReceiver with export flags (Android 14+)
-  implementation "androidx.core:core:1.13.1"
+  implementation "com.google.android.gms:play-services-auth-api-phone:18.3.1"
 }
