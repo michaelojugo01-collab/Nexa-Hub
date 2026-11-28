@@ -23,11 +23,11 @@ npm run web        # in the browser
 
 ## Scripts
 
-| Command             | What it does                                   |
-| ------------------- | ---------------------------------------------- |
-| `npm start`         | Start the Expo dev server                      |
-| `npm run lint`      | Lint with ESLint (`eslint-config-expo`)        |
-| `npm run typecheck` | Type-check with `tsc --noEmit`                 |
+| Command                 | What it does                                                         |
+| ----------------------- | -------------------------------------------------------------------- |
+| `npm start`             | Start the Expo dev server                                            |
+| `npm run lint`          | Lint with ESLint (`eslint-config-expo`)                              |
+| `npm run typecheck`     | Type-check with `tsc --noEmit`                                       |
 | `npm run reset-project` | Move the starter code to `example/` and start from a blank `src/app` |
 
 Add packages with `npx expo install <package>` (not `npm install`) so you get versions

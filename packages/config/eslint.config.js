@@ -1,0 +1,13 @@
+// Shared ESLint flat config for Nexa Hub packages.
+// Expo rules first, then Prettier turns off rules that fight formatting.
+const { defineConfig } = require('eslint/config');
+const expoConfig = require('eslint-config-expo/flat');
+const prettierConfig = require('eslint-config-prettier/flat');
+
+module.exports = defineConfig([
+  expoConfig,
+  prettierConfig,
+  {
+    ignores: ['dist/**', '**/generated/**', '.expo/**', 'node_modules/**'],
+  },
+]);
