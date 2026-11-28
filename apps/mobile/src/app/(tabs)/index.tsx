@@ -1,13 +1,3 @@
-import { EmptyState, Screen } from '@/components';
+import { HomeScreen } from '@/features/home/HomeScreen';
 
-export default function HomeScreen() {
-  return (
-    <Screen testID="home-screen">
-      <EmptyState
-        icon="home-outline"
-        title="Home"
-        description="Trending products and featured stores will appear here."
-      />
-    </Screen>
-  );
-}
+export default HomeScreen;
