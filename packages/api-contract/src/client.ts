@@ -21,6 +21,10 @@ export type UploadTicket = Schemas['UploadTicket'];
 export type ProductSummary = Schemas['ProductSummary'];
 export type ProductType = Schemas['ProductType'];
 export type ProductPage = Schemas['ProductPage'];
+export type Product = Schemas['Product'];
+export type PublicProfile = Schemas['PublicProfile'];
+export type SitemapEntry = Schemas['SitemapEntry'];
+export type SitemapPage = Schemas['SitemapPage'];
 export type DiscoverHome = Schemas['DiscoverHome'];
 export type Category = Schemas['Category'];
 export type CategoryPage = Schemas['CategoryPage'];
@@ -252,6 +256,17 @@ export function createApiClient(options: ApiClientOptions) {
 
     listProducts: (query: ListProductsQuery = {}) =>
       request<ProductPage>('GET', '/v1/products', { query }),
+
+    // Public web (F3)
+    getPublicProduct: (storeSlug: string, productSlug: string) =>
+      request<Product>(
+        'GET',
+        `/v1/stores/${encodeURIComponent(storeSlug)}/products/${encodeURIComponent(productSlug)}`,
+      ),
+    getPublicProfile: (username: string) =>
+      request<PublicProfile>('GET', `/v1/users/${encodeURIComponent(username)}`),
+    listSitemap: (query: { cursor?: string; limit?: number } = {}) =>
+      request<SitemapPage>('GET', '/v1/sitemap', { query }),
   };
 }
 

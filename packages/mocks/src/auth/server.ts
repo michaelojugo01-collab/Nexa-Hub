@@ -159,6 +159,15 @@ export class MockAuthServer {
     return this.authenticate(authorization);
   }
 
+  /** For public profiles: an active user by username, or undefined. */
+  async findUserByUsername(username: string): Promise<Me | undefined> {
+    await this.ensureLoaded();
+    const user = Object.values(this.db.users).find(
+      (u) => u.username === username && !u.deactivatedAt,
+    );
+    return user ? publicUser(user) : undefined;
+  }
+
   /** For other mock services: save after changing a user record from resolveUser. */
   saveUsers() {
     return this.persist();

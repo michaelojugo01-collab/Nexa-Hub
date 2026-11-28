@@ -2,7 +2,9 @@
 // The mock API and the tests both import from here.
 export { discoverHome, discoverHomeEmpty } from './discover-home';
 export { meBuyer, meSeller } from './me';
-export { products } from './products';
+export { productRecords, products, toProductSummary, type ProductRecord } from './products';
+export { profileFixtures, type ProfileSeed } from './profiles';
+export { slugify } from './slugify';
 export {
   findStore,
   fixtureFollows,

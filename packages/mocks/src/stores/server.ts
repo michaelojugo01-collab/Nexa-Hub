@@ -1,5 +1,8 @@
 import type {
   FollowState,
+  Product,
+  PublicProfile,
+  SitemapEntry,
   ImageVariants,
   OwnStore,
   SlugAvailability,
@@ -25,6 +28,8 @@ import type { MockPersistence } from '../persistence';
 import {
   categories,
   fixtureFollows,
+  productRecords,
+  profileFixtures,
   reservedSlugs,
   storeRecords,
   toPublicStore,
@@ -426,6 +431,81 @@ export class MockStoreServer {
       return { error: err(403, 'STORE_PRIVATE', 'This store is private.') };
     }
     return { slug: record.slug };
+  }
+
+  /** Slugs of stores everyone can see right now (for public product lists). */
+  async publicStoreSlugs() {
+    await this.ensureLoaded();
+    return new Set(
+      Object.values(this.db.stores)
+        .filter((s) => s.visibility === 'public')
+        .map((s) => s.slug),
+    );
+  }
+
+  // ── Public web (F3) ───────────────────────────────────────────────────────
+
+  /** GET /v1/stores/{storeSlug}/products/{productSlug}: live products of public stores. */
+  async getPublicProduct(storeSlug: string, productSlug: string) {
+    await this.ensureLoaded();
+    const notFoundProduct = err(404, 'NOT_FOUND', 'We couldn’t find that product.');
+    const store = this.bySlug(storeSlug);
+    if (!store || store.visibility !== 'public') return notFoundProduct;
+    const record = productRecords.find(
+      (p) => p.store.slug === store.slug && p.slug === productSlug && p.status === 'live',
+    );
+    if (!record) return notFoundProduct;
+    const { status: _s, updatedAt: _u, ...product } = record;
+    return ok<Product>({
+      ...product,
+      store: { slug: store.slug, name: store.name },
+      storeInfo: toSummary({ ...store, followerCount: this.followerCount(store) }),
+      redirectTo: storeSlug !== store.slug ? store.slug : null,
+    });
+  }
+
+  /** GET /v1/users/{username}: public fields only; the store only if it is public. */
+  async getPublicProfile(username: string) {
+    await this.ensureLoaded();
+    const account = await this.auth.findUserByUsername(username);
+    const seed = account ? undefined : profileFixtures.find((p) => p.username === username);
+    const person = account ?? seed;
+    if (!person || !person.username) {
+      return err(404, 'NOT_FOUND', 'We couldn’t find that profile.');
+    }
+    const store = this.byOwner(person.id);
+    return ok<PublicProfile>({
+      username: person.username,
+      displayName: person.displayName,
+      avatarUrl: person.avatarUrl,
+      bio: person.bio,
+      store:
+        store && store.visibility === 'public'
+          ? toSummary({ ...store, followerCount: this.followerCount(store) })
+          : null,
+      createdAt: person.createdAt,
+    });
+  }
+
+  /** GET /v1/sitemap: public stores, then live products of public stores. */
+  async sitemapEntries(): Promise<SitemapEntry[]> {
+    await this.ensureLoaded();
+    const publicStores = Object.values(this.db.stores).filter((s) => s.visibility === 'public');
+    const slugs = new Set(publicStores.map((s) => s.slug));
+    const storeEntries = publicStores.map<SitemapEntry>((s) => ({
+      type: 'store',
+      path: `/${s.slug}`,
+      updatedAt: s.createdAt,
+    }));
+    const currentSlug = (slug: string) => this.bySlug(slug)?.slug ?? slug;
+    const productEntries = productRecords
+      .filter((p) => p.status === 'live' && slugs.has(currentSlug(p.store.slug)))
+      .map<SitemapEntry>((p) => ({
+        type: 'product',
+        path: `/${currentSlug(p.store.slug)}/${p.slug}`,
+        updatedAt: p.updatedAt,
+      }));
+    return [...storeEntries, ...productEntries];
   }
 
   // ── Uploads ───────────────────────────────────────────────────────────────

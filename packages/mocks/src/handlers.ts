@@ -3,7 +3,14 @@ import type { ApiErrorBody } from '@nexa/api-contract';
 import type { MockServerOptions } from './auth/server';
 import { MockAuthServer } from './auth/server';
 import type { MockStoreServer } from './stores/server';
-import { categories, discoverHome, discoverHomeEmpty, products } from './fixtures';
+import {
+  categories,
+  discoverHome,
+  discoverHomeEmpty,
+  productRecords,
+  products,
+  toProductSummary,
+} from './fixtures';
 
 export type MockScenario = 'default' | 'empty';
 
@@ -32,10 +39,18 @@ const encodeCursor = (offset: number) => `cur_${offset.toString(36)}`;
 const decodeCursor = (cursor: string) =>
   cursor.startsWith('cur_') ? parseInt(cursor.slice(4), 36) : NaN;
 
-function paginate<T>(all: T[], query: Map<string, string>, defaultLimit: number): MockResponse {
+function paginate<T>(
+  all: T[],
+  query: Map<string, string>,
+  defaultLimit: number,
+  maxLimit = 50,
+): MockResponse {
   const limit = Number(query.get('limit') ?? defaultLimit);
-  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
-    return error(400, { code: 'VALIDATION_ERROR', message: 'limit must be between 1 and 50.' });
+  if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
+    return error(400, {
+      code: 'VALIDATION_ERROR',
+      message: `limit must be between 1 and ${maxLimit}.`,
+    });
   }
   const cursor = query.get('cursor');
   const offset = cursor ? decodeCursor(cursor) : 0;
@@ -103,10 +118,29 @@ const routes = [
       if (found.error) return found.error;
       storeSlug = found.slug;
     }
+    const visible = await stores.publicStoreSlugs();
     const all =
-      scenario === 'empty' ? [] : products.filter((p) => !storeSlug || p.store.slug === storeSlug);
+      scenario === 'empty'
+        ? []
+        : storeSlug
+          ? // productStore() already allowed this store (public, or the owner's own).
+            productRecords
+              .filter((p) => p.status === 'live' && p.store.slug === storeSlug)
+              .map(toProductSummary)
+          : products.filter((p) => visible.has(p.store.slug));
     return paginate(all, query, 20);
   }),
+
+  // Public web (F3)
+  route('GET', '/v1/stores/{storeSlug}/products/{productSlug}', ({ stores, params }) =>
+    stores.getPublicProduct(params.storeSlug ?? '', params.productSlug ?? ''),
+  ),
+  route('GET', '/v1/users/{username}', ({ stores, params }) =>
+    stores.getPublicProfile(params.username ?? ''),
+  ),
+  route('GET', '/v1/sitemap', async ({ stores, query, scenario }) =>
+    paginate(scenario === 'empty' ? [] : await stores.sitemapEntries(), query, 1000, 1000),
+  ),
 
   // Stores (F2). The literal paths come before /v1/stores/{slug}.
   route('POST', '/v1/stores', ({ stores, authorization, body }) =>

@@ -405,6 +405,73 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/stores/{storeSlug}/products/{productSlug}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * A live product by store slug and product slug (proposed)
+     * @description PROPOSED — the spec's public pages need /{store}/{product} but list no endpoint.
+     *     Public read (cache at the edge). Unpublished products and products of private stores
+     *     return 404. When `storeSlug` is the store's old slug, the product is returned with
+     *     `redirectTo` set to the store's current slug.
+     */
+    get: operations['getPublicProduct'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/users/{username}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * A public user profile (proposed)
+     * @description PROPOSED — the spec's public pages include /@user but list no endpoint. Only public
+     *     fields: never phone, email or interests. `store` is null when the user has no store
+     *     or it is private. Deactivated accounts return 404.
+     */
+    get: operations['getPublicProfile'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/sitemap': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Public pages for sitemap.xml (proposed)
+     * @description PROPOSED — the spec asks for a sitemap but lists no endpoint. Public stores and live
+     *     products of public stores only; never private stores or unpublished products.
+     *     Paths are relative to the public site (e.g. /adaezeprints/ankara-print-pattern-pack).
+     */
+    get: operations['listSitemap'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -541,8 +608,15 @@ export interface components {
       expiresAt: string;
       maxBytes: number;
     };
+    /**
+     * @description A product's link inside its store (PROPOSED, F3): made from the title when the product
+     *     is created, unique within the store. 3–60 characters, same character rules as Slug.
+     * @example ankara-print-pattern-pack-40-designs
+     */
+    ProductSlug: string;
     ProductSummary: {
       id: string;
+      slug: components['schemas']['ProductSlug'];
       title: string;
       type: components['schemas']['ProductType'];
       price: components['schemas']['Money'];
@@ -555,6 +629,40 @@ export interface components {
         name: string;
       };
       featured: boolean;
+    };
+    /** @description A live product as public pages show it (PROPOSED, F3). */
+    Product: components['schemas']['ProductSummary'] & {
+      /** @description Short plain-text description. */
+      description: string | null;
+      /** @description Cover first. Empty when the product has no images. */
+      images: string[];
+      storeInfo: components['schemas']['StoreSummary'];
+      /** Format: date-time */
+      publishedAt: string;
+      /** @description Set when the request used the store's old slug; its current slug. */
+      redirectTo: components['schemas']['Slug'] | null;
+    };
+    PublicProfile: {
+      username: components['schemas']['Username'];
+      displayName: string | null;
+      /** Format: uri */
+      avatarUrl: string | null;
+      bio: string | null;
+      store: components['schemas']['StoreSummary'] | null;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    SitemapEntry: {
+      /** @enum {string} */
+      type: 'store' | 'product';
+      /** @example /adaezeprints */
+      path: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    SitemapPage: {
+      data: components['schemas']['SitemapEntry'][];
+      nextCursor: string | null;
     };
     ProductPage: {
       data: components['schemas']['ProductSummary'][];
@@ -1642,6 +1750,144 @@ export interface operations {
       400: components['responses']['ValidationError'];
       404: components['responses']['NotFound'];
       500: components['responses']['InternalError'];
+    };
+  };
+  getPublicProduct: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @example adaezeprints */
+        storeSlug: components['schemas']['Slug'];
+        /** @example ankara-print-pattern-pack-40-designs */
+        productSlug: components['schemas']['ProductSlug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The product */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Product'];
+        };
+      };
+      /** @description Unknown or unpublished product, or a private store */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "NOT_FOUND",
+           *       "message": "We couldn’t find that product."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+      500: components['responses']['InternalError'];
+    };
+  };
+  getPublicProfile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @example adaeze */
+        username: components['schemas']['Username'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The profile */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "username": "adaeze",
+           *       "displayName": "Adaeze Okafor",
+           *       "avatarUrl": null,
+           *       "bio": "Textile designer in Yaba.",
+           *       "store": {
+           *         "id": "str_01HZX3M1A7",
+           *         "slug": "adaezeprints",
+           *         "name": "Adaeze Prints",
+           *         "avatarUrl": null,
+           *         "location": "Yaba, Lagos",
+           *         "verified": true,
+           *         "followerCount": 12480
+           *       },
+           *       "createdAt": "2026-10-02T09:15:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['PublicProfile'];
+        };
+      };
+      /** @description No such user */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "code": "NOT_FOUND",
+           *       "message": "We couldn’t find that profile."
+           *     }
+           */
+          'application/json': components['schemas']['Error'];
+        };
+      };
+    };
+  };
+  listSitemap: {
+    parameters: {
+      query?: {
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of sitemap entries */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "data": [
+           *         {
+           *           "type": "store",
+           *           "path": "/adaezeprints",
+           *           "updatedAt": "2026-11-20T10:00:00Z"
+           *         },
+           *         {
+           *           "type": "product",
+           *           "path": "/adaezeprints/ankara-print-pattern-pack-40-designs",
+           *           "updatedAt": "2026-11-21T08:30:00Z"
+           *         }
+           *       ],
+           *       "nextCursor": null
+           *     }
+           */
+          'application/json': components['schemas']['SitemapPage'];
+        };
+      };
+      400: components['responses']['ValidationError'];
     };
   };
 }

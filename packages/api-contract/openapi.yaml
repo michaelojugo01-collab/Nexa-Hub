@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Nexa Hub API
-  version: 0.3.0
+  version: 0.4.0
   description: |
-    Contract v0.3 — endpoints for F0 (discovery), F1 (accounts and authentication) and
-    F2 (stores and profiles).
+    Contract v0.4 — endpoints for F0 (discovery), F1 (accounts and authentication),
+    F2 (stores and profiles) and F3 (public web pages).
     Operations marked `x-status: proposed` are not in the spec's endpoint list; see
     docs/decisions.md.
 
@@ -31,6 +31,7 @@ tags:
   - name: Discovery
   - name: Stores
   - name: Products
+  - name: Public web
 
 paths:
   /v1/auth/otp/request:
@@ -909,6 +910,146 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /v1/stores/{storeSlug}/products/{productSlug}:
+    get:
+      tags: [Products, Public web]
+      operationId: getPublicProduct
+      summary: A live product by store slug and product slug (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec's public pages need /{store}/{product} but list no endpoint.
+        Public read (cache at the edge). Unpublished products and products of private stores
+        return 404. When `storeSlug` is the store's old slug, the product is returned with
+        `redirectTo` set to the store's current slug.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: storeSlug
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Slug'
+          example: adaezeprints
+        - name: productSlug
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ProductSlug'
+          example: ankara-print-pattern-pack-40-designs
+      responses:
+        '200':
+          description: The product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Unknown or unpublished product, or a private store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: NOT_FOUND
+                message: We couldn’t find that product.
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/users/{username}:
+    get:
+      tags: [Public web]
+      operationId: getPublicProfile
+      summary: A public user profile (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec's public pages include /@user but list no endpoint. Only public
+        fields: never phone, email or interests. `store` is null when the user has no store
+        or it is private. Deactivated accounts return 404.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Username'
+          example: adaeze
+      responses:
+        '200':
+          description: The profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfile'
+              example:
+                username: adaeze
+                displayName: Adaeze Okafor
+                avatarUrl: null
+                bio: Textile designer in Yaba.
+                store:
+                  id: str_01HZX3M1A7
+                  slug: adaezeprints
+                  name: Adaeze Prints
+                  avatarUrl: null
+                  location: Yaba, Lagos
+                  verified: true
+                  followerCount: 12480
+                createdAt: '2026-10-02T09:15:00Z'
+        '404':
+          description: No such user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: NOT_FOUND
+                message: We couldn’t find that profile.
+
+  /v1/sitemap:
+    get:
+      tags: [Public web]
+      operationId: listSitemap
+      summary: Public pages for sitemap.xml (proposed)
+      x-status: proposed
+      description: |
+        PROPOSED — the spec asks for a sitemap but lists no endpoint. Public stores and live
+        products of public stores only; never private stores or unpublished products.
+        Paths are relative to the public site (e.g. /adaezeprints/ankara-print-pattern-pack).
+      security:
+        - {}
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 1000
+      responses:
+        '200':
+          description: One page of sitemap entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SitemapPage'
+              example:
+                data:
+                  - { type: store, path: /adaezeprints, updatedAt: '2026-11-20T10:00:00Z' }
+                  - type: product
+                    path: /adaezeprints/ankara-print-pattern-pack-40-designs
+                    updatedAt: '2026-11-21T08:30:00Z'
+                nextCursor: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1177,12 +1318,24 @@ components:
         maxBytes:
           type: integer
 
+    ProductSlug:
+      type: string
+      description: |
+        A product's link inside its store (PROPOSED, F3): made from the title when the product
+        is created, unique within the store. 3–60 characters, same character rules as Slug.
+      pattern: '^(?!.*--)[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$'
+      minLength: 3
+      maxLength: 60
+      example: ankara-print-pattern-pack-40-designs
+
     ProductSummary:
       type: object
-      required: [id, title, type, price, compareAtPrice, imageUrl, store, featured]
+      required: [id, slug, title, type, price, compareAtPrice, imageUrl, store, featured]
       properties:
         id:
           type: string
+        slug:
+          $ref: '#/components/schemas/ProductSlug'
         title:
           type: string
         type:
@@ -1207,6 +1360,80 @@ components:
               type: string
         featured:
           type: boolean
+
+    Product:
+      description: A live product as public pages show it (PROPOSED, F3).
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          required: [description, images, storeInfo, publishedAt, redirectTo]
+          properties:
+            description:
+              type: [string, 'null']
+              maxLength: 500
+              description: Short plain-text description.
+            images:
+              type: array
+              description: Cover first. Empty when the product has no images.
+              items:
+                type: string
+                format: uri
+            storeInfo:
+              $ref: '#/components/schemas/StoreSummary'
+            publishedAt:
+              type: string
+              format: date-time
+            redirectTo:
+              description: Set when the request used the store's old slug; its current slug.
+              oneOf:
+                - $ref: '#/components/schemas/Slug'
+                - type: 'null'
+
+    PublicProfile:
+      type: object
+      required: [username, displayName, avatarUrl, bio, store, createdAt]
+      properties:
+        username:
+          $ref: '#/components/schemas/Username'
+        displayName:
+          type: [string, 'null']
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+        bio:
+          type: [string, 'null']
+        store:
+          oneOf:
+            - $ref: '#/components/schemas/StoreSummary'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+
+    SitemapEntry:
+      type: object
+      required: [type, path, updatedAt]
+      properties:
+        type:
+          type: string
+          enum: [store, product]
+        path:
+          type: string
+          example: /adaezeprints
+        updatedAt:
+          type: string
+          format: date-time
+
+    SitemapPage:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SitemapEntry'
+        nextCursor:
+          type: [string, 'null']
 
     ProductPage:
       type: object
@@ -1713,6 +1940,7 @@ components:
       value:
         data:
           - id: prd_01HZX4A0B1
+            slug: ankara-print-pattern-pack-40-designs
             title: Ankara Print Pattern Pack (40 designs)
             type: digital
             price: { amountKobo: 450000, currency: NGN }
@@ -1733,6 +1961,7 @@ components:
             followerCount: 12480
         trendingProducts:
           - id: prd_01HZX4A0B1
+            slug: ankara-print-pattern-pack-40-designs
             title: Ankara Print Pattern Pack (40 designs)
             type: digital
             price: { amountKobo: 450000, currency: NGN }
@@ -1742,6 +1971,7 @@ components:
             featured: true
         newProducts:
           - id: prd_01HZX4C7D2
+            slug: jamb-physics-past-questions-2015-2025
             title: JAMB Physics Past Questions 2015–2025
             type: ebook
             price: { amountKobo: 150000, currency: NGN }

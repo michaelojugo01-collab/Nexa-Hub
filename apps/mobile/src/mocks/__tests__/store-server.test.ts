@@ -326,3 +326,73 @@ describe('mock stores: uploads', () => {
     );
   });
 });
+
+describe('mock public web endpoints (F3)', () => {
+  it('serves a live product by store slug and product slug, following old store slugs', async () => {
+    const { anon } = setup();
+    const product = await anon.getPublicProduct(
+      'adaezeprints',
+      'ankara-print-pattern-pack-40-designs',
+    );
+    expect(product).toMatchObject({
+      title: 'Ankara Print Pattern Pack (40 designs)',
+      price: { amountKobo: 450000, currency: 'NGN' },
+      storeInfo: { slug: 'adaezeprints', name: 'Adaeze Prints' },
+      redirectTo: null,
+    });
+    expect(product.images.length).toBeGreaterThan(0);
+    await expect(
+      anon.getPublicProduct('adaezestudio', 'ankara-print-pattern-pack-40-designs'),
+    ).resolves.toMatchObject({ redirectTo: 'adaezeprints' });
+  });
+
+  it('hides drafts, products of private stores and unknown slugs', async () => {
+    const { anon } = setup();
+    for (const [store, slug] of [
+      ['adaezeprints', 'asoke-pattern-pack-coming-soon'],
+      ['lensbyemeka', 'owambe-glow-lightroom-presets'],
+      ['adaezeprints', 'no-such-product'],
+      ['no-such-store', 'anything'],
+    ] as const) {
+      expect((await fail(anon.getPublicProduct(store, slug))).status).toBe(404);
+    }
+    const all = await anon.listProducts({ limit: 50 });
+    expect(all.data.some((p) => p.store.slug === 'lensbyemeka')).toBe(false);
+    expect(all.data.some((p) => p.title.startsWith('Asoke'))).toBe(false);
+  });
+
+  it('serves public profiles without private fields', async () => {
+    const { anon } = setup();
+    const adaeze = await anon.getPublicProfile('adaeze');
+    expect(adaeze).toMatchObject({
+      username: 'adaeze',
+      displayName: 'Adaeze Okafor',
+      store: { slug: 'adaezeprints' },
+    });
+    expect(Object.keys(adaeze).sort()).toEqual(
+      ['avatarUrl', 'bio', 'createdAt', 'displayName', 'store', 'username'].sort(),
+    );
+    await expect(anon.getPublicProfile('emeka')).resolves.toMatchObject({ store: null }); // private store
+    await expect(anon.getPublicProfile('tunde')).resolves.toMatchObject({
+      store: { slug: 'studysmartabuja' },
+    });
+    expect((await fail(anon.getPublicProfile('nobody_here'))).status).toBe(404);
+  });
+
+  it('lists only public stores and live products of public stores in the sitemap', async () => {
+    const { anon, newSeller } = setup();
+    const seller = await newSeller();
+    await seller.createStore({ ...create });
+    await seller.updateStore({ visibility: 'private' });
+
+    const { data } = await anon.listSitemap();
+    const paths = data.map((e) => e.path);
+    expect(paths).toContain('/adaezeprints');
+    expect(paths).toContain('/adaezeprints/ankara-print-pattern-pack-40-designs');
+    expect(paths).not.toContain('/lensbyemeka');
+    expect(paths).not.toContain('/bisibakes');
+    expect(paths.some((p) => p.startsWith('/lensbyemeka/'))).toBe(false);
+    expect(paths.some((p) => p.includes('asoke-pattern-pack'))).toBe(false);
+    expect(paths).not.toContain('/adaezestudio');
+  });
+});
