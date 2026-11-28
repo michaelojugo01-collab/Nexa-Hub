@@ -62,7 +62,7 @@ export function Avatar({ name, uri, size = 'md', ring = false, className, testID
       accessible
       accessibilityRole="image"
       accessibilityLabel={`${name}'s profile picture`}
-      className={cn('self-start', className)}>
+      className={cn(className)}>
       {ring ? (
         <ChromeGradient className="rounded-full p-0.5">
           <View className="rounded-full bg-bg p-0.5">{face}</View>

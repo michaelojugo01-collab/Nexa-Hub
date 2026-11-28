@@ -1,4 +1,7 @@
-/** 4px spacing scale. Key = step, value = pixels. Used for padding, margin and gap. */
+/**
+ * 4px spacing scale. Key = step, value = pixels (step × 4).
+ * Used for padding, margin, gap, and width/height (so h-24 = 96px).
+ */
 export const spacing = {
   0: 0,
   0.5: 2,
@@ -11,7 +14,12 @@ export const spacing = {
   8: 32,
   10: 40,
   12: 48,
+  14: 56,
   16: 64,
+  20: 80,
+  24: 96,
+  32: 128,
+  40: 160,
 } as const;
 
 export const radius = {

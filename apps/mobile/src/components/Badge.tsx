@@ -39,7 +39,7 @@ export function Badge({
 
   if (variant === 'chrome') {
     return (
-      <View {...a11y} className={cn('self-start overflow-hidden rounded-full', className)}>
+      <View {...a11y} className={cn('overflow-hidden rounded-full', className)}>
         <ChromeGradient className="px-2 py-0.5">
           <Text className={cn(textClass, 'text-text')}>{label}</Text>
         </ChromeGradient>
@@ -49,7 +49,7 @@ export function Badge({
 
   const s = styles[variant];
   return (
-    <View {...a11y} className={cn('self-start rounded-full px-2 py-0.5', s.box, className)}>
+    <View {...a11y} className={cn('rounded-full px-2 py-0.5', s.box, className)}>
       <Text className={cn(textClass, s.text)}>{label}</Text>
     </View>
   );
