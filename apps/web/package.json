@@ -1,0 +1,36 @@
+{
+  "name": "@nexa/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nexa Hub public web pages (F3): read-only store, product and profile pages with link previews and app links",
+  "scripts": {
+    "dev": "NEXT_TELEMETRY_DISABLED=1 next dev --port 3000",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build",
+    "start": "NEXT_TELEMETRY_DISABLED=1 next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:smoke": "playwright test"
+  },
+  "dependencies": {
+    "@nexa/api-contract": "workspace:*",
+    "@nexa/mocks": "workspace:*",
+    "@nexa/ui": "workspace:*",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@nexa/config": "workspace:*",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "~19.3.0",
+    "@types/react-dom": "~19.3.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.39.5",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~6.0.3",
+    "vitest": "5.1.2"
+  }
+}

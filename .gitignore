@@ -43,3 +43,10 @@ example
 /android
 apps/mobile/ios/
 apps/mobile/android/
+
+# Next.js (apps/web)
+.next/
+next-env.d.ts
+.vercel/
+playwright-report/
+test-results/

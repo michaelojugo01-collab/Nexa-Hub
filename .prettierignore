@@ -3,3 +3,6 @@ pnpm-lock.yaml
 **/.expo/**
 **/dist/**
 docs/*.pdf
+**/.next/**
+**/playwright-report/**
+**/test-results/**
