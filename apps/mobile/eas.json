@@ -1,0 +1,38 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_USE_MOCKS": "true",
+        "EXPO_PUBLIC_MOCK_DELAY_MS": "800",
+        "EXPO_PUBLIC_MOCK_FAILURE_RATE": "0"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_USE_MOCKS": "true",
+        "EXPO_PUBLIC_MOCK_DELAY_MS": "800",
+        "EXPO_PUBLIC_MOCK_FAILURE_RATE": "0"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": { "buildType": "app-bundle" },
+      "env": {
+        "EXPO_PUBLIC_USE_MOCKS": "false",
+        "EXPO_PUBLIC_API_URL": "https://api.nexahub.ng"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

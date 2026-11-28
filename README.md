@@ -1,55 +1,62 @@
 # Nexa Hub
 
-A mobile app built with [Expo](https://expo.dev) (SDK 58) and React Native, using
-[Expo Router](https://docs.expo.dev/router/introduction/) for file-based navigation and TypeScript.
+A Nigerian creator and seller marketplace. iOS and Android from one Expo codebase.
+
+- Spec: [`docs/NEXA_HUB_Build_Specification.pdf`](docs/NEXA_HUB_Build_Specification.pdf)
+- Decisions: [`docs/decisions.md`](docs/decisions.md)
+- Project rules (for people and AI tools): [`CLAUDE.md`](CLAUDE.md)
 
 ## Getting started
 
-Requirements: Node.js 22 (see `.nvmrc`) and the **Expo Go** app on your phone
-([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)).
+Needs Node 22 (`.nvmrc`), pnpm 10 (`corepack enable`) and the **Expo Go** app on an Android phone.
 
 ```bash
-npm install
-npm start          # starts the dev server; scan the QR code with Expo Go
+pnpm install
+pnpm dev          # scan the QR code with Expo Go (phone and computer on the same Wi-Fi)
 ```
 
-Other ways to run it:
+The app runs against a **mock API** by default (`apps/mobile/.env`). To see other states, create
+`apps/mobile/.env.local`:
 
 ```bash
-npm run android    # Android emulator (needs Android Studio)
-npm run ios        # iOS simulator (needs macOS + Xcode)
-npm run web        # in the browser
+EXPO_PUBLIC_MOCK_DELAY_MS=3000      # slow network → loading skeletons
+EXPO_PUBLIC_MOCK_FAILURE_RATE=1     # every request fails → error states
+EXPO_PUBLIC_MOCK_SCENARIO=empty     # empty lists → empty states
 ```
 
-## Scripts
+Restart `pnpm dev` after changing env values (add `--clear` if they don't apply).
 
-| Command                 | What it does                                                         |
-| ----------------------- | -------------------------------------------------------------------- |
-| `npm start`             | Start the Expo dev server                                            |
-| `npm run lint`          | Lint with ESLint (`eslint-config-expo`)                              |
-| `npm run typecheck`     | Type-check with `tsc --noEmit`                                       |
-| `npm run reset-project` | Move the starter code to `example/` and start from a blank `src/app` |
+Profile → **Components** (development only) shows every component in every state.
 
-Add packages with `npx expo install <package>` (not `npm install`) so you get versions
-compatible with the Expo SDK.
+## Scripts (run from the repo root)
 
-## Project structure
+| Command             | What it does                                                   |
+| ------------------- | -------------------------------------------------------------- |
+| `pnpm dev`          | Start the Expo dev server                                      |
+| `pnpm lint`         | ESLint across all packages                                     |
+| `pnpm typecheck`    | TypeScript across all packages                                 |
+| `pnpm test`         | Jest tests                                                     |
+| `pnpm generate:api` | Regenerate API types from `packages/api-contract/openapi.yaml` |
+| `pnpm format`       | Prettier                                                       |
+
+## Layout
 
 ```
-src/
-  app/          # Routes — every file is a screen, _layout.tsx defines navigators
-  components/   # Reusable UI components
-  constants/    # Theme colors, spacing
-  hooks/        # Custom hooks
-assets/         # Images, icons, splash screen
-app.json        # Expo app config (name, icons, plugins)
+apps/mobile            Expo app (src/app = routes, src/components = the 15 core components,
+                       src/features = screen code, src/mocks = fixtures + mock API)
+apps/api|admin|web     not started
+packages/api-contract  openapi.yaml, generated types, typed client
+packages/ui            design tokens + Tailwind preset
+packages/config        ESLint, Prettier, tsconfig
+docs/                  spec and decisions log
 ```
 
-## Building for stores
-
-Use [EAS Build](https://docs.expo.dev/build/introduction/):
+## Builds (EAS, Android first)
 
 ```bash
+cd apps/mobile
 npx eas-cli@latest login
-npx eas-cli@latest build --platform android   # or ios
+npx eas-cli@latest build --profile preview --platform android   # installable APK
 ```
+
+Profiles are in `apps/mobile/eas.json`: `development`, `preview` and `production`.
