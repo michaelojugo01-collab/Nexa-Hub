@@ -70,8 +70,8 @@ Profiles in `apps/mobile/eas.json`:
 
 | Profile                 | Android               | iOS                                             |
 | ----------------------- | --------------------- | ----------------------------------------------- |
-| `development`           | APK with dev tools*   | Registered iPhones (ad hoc)*                    |
-| `development-simulator` | —                     | iOS Simulator on a Mac*                         |
+| `development`           | APK with dev tools    | Registered iPhones (ad hoc), with dev tools     |
+| `development-simulator` | —                     | iOS Simulator on a Mac, with dev tools          |
 | `preview`               | Installable APK       | Registered iPhones (ad hoc)                     |
 | `preview-simulator`     | —                     | iOS Simulator on a Mac, no Apple account needed |
 | `production`            | Play Store app bundle | App Store / TestFlight                          |
